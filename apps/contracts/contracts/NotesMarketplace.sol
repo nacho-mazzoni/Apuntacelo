@@ -9,8 +9,8 @@ pragma solidity ^0.8.28;
  *  Flujo:
  *  1. Un usuario crea una solicitud (bounty) enviando CELO como escrow.
  *  2. Otros usuarios pueden ofrecer un link/hash del material para esa solicitud.
- *  3. El solicitante elige una oferta; el contrato transfiere la recompensa al ganador
- *     y cierra la solicitud.
+ *  3. El solicitante elige una oferta; el contrato transfiere la recompensa al ganador,
+ *     actualiza su reputación y cierra la solicitud.
  *
  *  Todas las recompensas se manejan en la moneda nativa (CELO), por lo que
  *  las funciones son `payable` y utilizan `address payable`.
@@ -45,6 +45,10 @@ contract BountyBasedNotes {
     mapping(uint256 => Request) public requests;                 // requestId => Request
     mapping(uint256 => Offer[]) public offersByRequest;          // requestId => array of offers
 
+    // --- Reputación ---------------------------------------------------------
+    mapping(address => uint256) public reputation;          // puntaje total acumulado
+    mapping(address => uint256) public completedTasks;     // # de tareas completadas
+
     // -------------------------------------------------------------------------
     // Eventos
     // -------------------------------------------------------------------------
@@ -66,6 +70,11 @@ contract BountyBasedNotes {
         uint256 indexed requestId,
         address indexed seller,
         uint256 reward
+    );
+
+    event ReputationUpdated(
+        address indexed student,
+        uint256 newAverage
     );
 
     // -------------------------------------------------------------------------
@@ -119,17 +128,22 @@ contract BountyBasedNotes {
     }
 
     /**
-     * @dev El solicitante original acepta una oferta concreta.
-     *      Se transfiere la recompensa al vendedor y la solicitud se marca como cerrada.
+     * @dev El solicitante original acepta una oferta concreta y califica al vendedor.
      *
      * @param _requestId Id de la solicitud.
      * @param _offerIndex Índice de la oferta dentro del array `offersByRequest`.
+     * @param rating Calificación del vendedor (1 a 5).
      */
-    function acceptOffer(uint256 _requestId, uint256 _offerIndex) external {
+    function acceptOffer(
+        uint256 _requestId,
+        uint256 _offerIndex,
+        uint8 rating
+    ) external {
         Request storage req = requests[_requestId];
         require(req.id != 0, "Solicitud no existe");
         require(req.status == Status.Open, "Solicitud ya cerrada");
         require(msg.sender == req.requester, "Solo el solicitante puede aceptar");
+        require(rating >= 1 && rating <= 5, "Rating must be between 1 and 5");
 
         Offer memory selectedOffer = offersByRequest[_requestId][_offerIndex];
         require(selectedOffer.seller != address(0), "Oferta invalida");
@@ -137,6 +151,15 @@ contract BountyBasedNotes {
         // Transferir la recompensa al vendedor
         (bool sent, ) = selectedOffer.seller.call{value: req.reward}("");
         require(sent, "Error al transferir CELO");
+
+        // Actualizar reputación del vendedor
+        reputation[selectedOffer.seller] += rating;
+        completedTasks[selectedOffer.seller] += 1;
+
+        uint256 newAverage = reputation[selectedOffer.seller] /
+            completedTasks[selectedOffer.seller];
+
+        emit ReputationUpdated(selectedOffer.seller, newAverage);
 
         // Cerrar la solicitud
         req.status = Status.Closed;
