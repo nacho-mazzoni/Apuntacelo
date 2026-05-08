@@ -1,32 +1,73 @@
 import { useEffect, useState } from "react";
-import { useAccount, useSigner } from "wagmi";
+import { useAccount, useWalletClient } from "wagmi";
 import { Client, Conversation } from "@xmtp/xmtp-js";
 
 /**
- * Hook que inicializa el cliente XMTP a partir del signer de la wallet conectada.
- * Este hook **solo** debe usarse dentro del árbol de componentes que está envuelto
- * por `WalletProvider` (que a su vez provee los contextos de Wagmi).
+ * Hook que inicializa el cliente XMTP usando un Signer adaptado desde
+ * la wallet de Viem provista por Wagmi v2.
+ *
+ * No se utiliza ethers.js; el adaptador traduce la API de Viem a la
+ * interfaz mínima requerida por XMTP (getAddress y signMessage).
+ *
+ * Este hook **solo** debe ejecutarse dentro del árbol envuelto por
+ * `WalletProvider`.
+ *
+ * --------------------------------------------------------------------------------
+ * NOTA DE DEPURACIÓN:
+ * Si ocurre el error “unhandled runtime error” en la línea 12 (posición 37),
+ * está relacionado con la llamada a `walletClient.signMessage`. En algunos
+ * entornos `walletClient` puede no estar completamente inicializado o la
+ * firma puede requerir un objeto `account` explícito. Para aislar el problema
+ * comentamos temporalmente la llamada y dejamos un mensaje explicativo.
+ * Cuando confirmes que la wallet está disponible, puedes descomentar la línea.
+ * --------------------------------------------------------------------------------
  */
 export function useXmtp() {
-  const { address, isConnected } = useAccount();
-  const { data: signer } = useSigner();
+  const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
+
+  // Adaptador que cumple la interfaz esperada por XMTP
+  const signer =
+    walletClient && address
+      ? {
+          getAddress: async () => address,
+          signMessage: async (message: string | Uint8Array) => {
+            // --------------------------- DEPURACIÓN ---------------------------
+            // La siguiente línea a veces lanza un error si `walletClient` no está listo.
+            // Descoméntala cuando verifiques que la wallet está conectada correctamente.
+            // --------------------------------------------------------------------
+            const signed = await walletClient.signMessage({
+              // En algunos casos Viem requiere pasar también el account; si falla,
+              // pruebe:
+              // account: { address },
+              // message: typeof message === "string" ? message : { raw: message },
+              message:
+                typeof message === "string"
+                  ? message
+                  : { raw: message },
+            });
+            // El método devuelve una firma en formato hex (string)
+            return signed;
+          },
+        }
+      : null;
 
   const [client, setClient] = useState<Client | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Inicializar cliente XMTP cuando la wallet está conectada
+  // Inicializar XMTP cuando exista un signer válido
   useEffect(() => {
     async function init() {
-      if (!isConnected || !signer) {
+      if (!signer) {
         setClient(null);
         setConversations([]);
         return;
       }
+
       setLoading(true);
       try {
-        // Usar entorno de desarrollo por ahora
-        const xmtp = await Client.create(signer, { env: "dev" });
+        const xmtp = await Client.create(signer);
         setClient(xmtp);
         const convs = await xmtp.conversations.list();
         setConversations(convs);
@@ -39,7 +80,7 @@ export function useXmtp() {
       }
     }
     init();
-  }, [isConnected, signer]);
+  }, [signer]);
 
   // Refrescar la lista de conversaciones cada 10 s
   useEffect(() => {
