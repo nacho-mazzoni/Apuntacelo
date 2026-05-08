@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
+import "../src/app/globals.css";
 import { WalletProvider } from "@/components/wallet-provider";
 import { Navbar } from "@/components/navbar";
 
@@ -8,8 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Apuntacelo",
-  description:
-    'new way to buy "Apuntes" for university between students',
+  description: 'new way to buy "Apuntes" for university between students',
 };
 
 export default function RootLayout({
