@@ -1,15 +1,40 @@
 import { useEffect, useState } from "react";
-import { useAccount, useSigner } from "wagmi";
+import { useAccount, useWalletClient } from "wagmi";
 import { Client, Conversation } from "@xmtp/xmtp-js";
 
 /**
- * Hook que inicializa el cliente XMTP a partir del signer de la wallet conectada.
- * Este hook **solo** debe usarse dentro del árbol de componentes que está envuelto
- * por `WalletProvider` (que a su vez provee los contextos de Wagmi).
+ * Hook que inicializa el cliente XMTP a partir del wallet (viem) conectado.
+ * En Wagmi v2 ya no existe `useSigner`; en su lugar usamos `useWalletClient`
+ * y creamos un adaptador mínimo que cumpla la interfaz esperada por XMTP
+ * (métodos `getAddress` y `signMessage`).
+ *
+ * Este hook **solo** debe usarse dentro del árbol de componentes envuelto por
+ * `WalletProvider`.
  */
 export function useXmtp() {
   const { address, isConnected } = useAccount();
-  const { data: signer } = useSigner();
+  const { data: walletClient } = useWalletClient();
+
+  // Adaptador que actúa como un Signer compatible con XMTP
+  const getSigner = () => {
+    if (!walletClient || !walletClient.account) return null;
+
+    return {
+      // Devuelve la dirección del account actual
+      getAddress: async () => walletClient.account.address,
+
+      // Firma mensajes usando el método de viem
+      signMessage: async (message: string | Uint8Array) => {
+        const signed = await walletClient.signMessage({
+          // viem acepta tanto string como Uint8Array; si es Uint8Array usamos la forma raw
+          message: typeof message === "string" ? message : { raw: message },
+          account: walletClient.account,
+        });
+        // XMTP acepta la firma como string (formato ethers). Viem ya devuelve un string.
+        return signed;
+      },
+    };
+  };
 
   const [client, setClient] = useState<Client | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -18,15 +43,23 @@ export function useXmtp() {
   // Inicializar cliente XMTP cuando la wallet está conectada
   useEffect(() => {
     async function init() {
-      if (!isConnected || !signer) {
+      if (!isConnected) {
         setClient(null);
         setConversations([]);
         return;
       }
+
+      const signer = getSigner();
+      if (!signer) {
+        setClient(null);
+        setConversations([]);
+        return;
+      }
+
       setLoading(true);
       try {
-        // Usar entorno de desarrollo por ahora
-        const xmtp = await Client.create(signer, { env: "dev" });
+        // Usar entorno de desarrollo por ahora; cambiar a "production" en prod
+        const xmtp = await Client.create(signer as any, { env: "dev" });
         setClient(xmtp);
         const convs = await xmtp.conversations.list();
         setConversations(convs);
@@ -39,7 +72,7 @@ export function useXmtp() {
       }
     }
     init();
-  }, [isConnected, signer]);
+  }, [isConnected, walletClient]);
 
   // Refrescar la lista de conversaciones cada 10 s
   useEffect(() => {
