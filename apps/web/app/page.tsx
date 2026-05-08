@@ -5,21 +5,10 @@ import {
   Button,
   // UI components
 } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ConnectButton } from "@/components/connect-button";
 import { UserBalance } from "@/components/user-balance";
-import {
-  Zap,
-  Upload,
-  FileText,
-  MessageSquare,
-  Send,
-} from "lucide-react";
+import { Zap, Upload, FileText, MessageSquare, Send } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -27,6 +16,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+
 import { useXmtp } from "@/hooks/useXmtp";
 
 // -----------------------------------------------------------------------------
@@ -222,8 +212,8 @@ export default function Home() {
                 <>
                   {conversations.length === 0 ? (
                     <p className="text-muted-foreground">
-                      No tienes chats activos. ¡Haz una oferta por un apunte para
-                      empezar!
+                      No tienes chats activos. ¡Haz una oferta por un apunte
+                      para empezar!
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -233,9 +223,10 @@ export default function Home() {
                           variant="ghost"
                           className="w-full justify-start"
                           onClick={async () => {
-                            const fullConv = await client!.conversations.newConversation(
-                              conv.peerAddress
-                            );
+                            const fullConv =
+                              await client!.conversations.newConversation(
+                                conv.peerAddress
+                              );
                             setSelectedConversation(fullConv);
                           }}
                         >
@@ -255,7 +246,9 @@ export default function Home() {
                       <div
                         key={idx}
                         className={`flex ${
-                          msg.senderAddress === address ? "justify-end" : "justify-start"
+                          msg.senderAddress === address
+                            ? "justify-end"
+                            : "justify-start"
                         }`}
                       >
                         <div
@@ -331,7 +324,9 @@ export default function Home() {
                   />
                 </div>
                 <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">Recompensa (CELO)</label>
+                  <label className="text-sm font-medium">
+                    Recompensa (CELO)
+                  </label>
                   <input
                     type="number"
                     name="reward"
