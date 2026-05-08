@@ -1,12 +1,66 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ConnectButton } from "@/components/connect-button";
 import { UserBalance } from "@/components/user-balance";
 import { Zap, Upload, ShoppingCart, FileText } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+
+// -----------------------------------------------------------------------------
+// Mock de datos de bounty (para demostrar UI). En producción se leerá del contrato.
+// -----------------------------------------------------------------------------
+const mockBounties = [
+  {
+    id: 1,
+    title: "Final de Física II UTN",
+    reward: 2.5, // CELO
+    description: "Necesito apuntes del último parcial.",
+  },
+  {
+    id: 2,
+    title: "Apuntes de Álgebra Lineal",
+    reward: 1.8,
+    description: "Busco material completo para el examen.",
+  },
+  {
+    id: 3,
+    title: "Tema de Redes Blockchain",
+    reward: 3,
+    description: "Quiero una guía práctica para la entrega.",
+  },
+];
 
 export default function Home() {
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    reward: "",
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Aquí iría la lógica de wagmi para ejecutar `createRequest`
+    // Por ahora, simplemente limpiamos el formulario.
+    console.log("Crear bounty:", formData);
+    setFormData({ title: "", description: "", reward: "" });
+    setShowForm(false);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* ---------- Header (sticky) ---------- */}
@@ -18,10 +72,10 @@ export default function Home() {
             <UserBalance />
           </div>
 
-          {/* Right side: Cargar Apunte button */}
+          {/* Right side: botón principal "Pedir Apunte" */}
           <Button variant="outline" size="sm" className="gap-2">
             <Upload className="h-4 w-4" />
-            <span className="hidden sm:inline">Cargar Apunte</span>
+            <span className="hidden sm:inline">Pedir Apunte</span>
           </Button>
         </div>
       </header>
@@ -37,37 +91,35 @@ export default function Home() {
             </div>
             <h1 className="text-3xl font-bold tracking-tight">Apuntacelo</h1>
             <p className="text-muted-foreground mt-2 text-sm">
-              Intercambio de apuntes P2P para la facu.
+              Intercambio de apuntes basado en recompensas (Bounties).
             </p>
           </div>
         </section>
 
-        {/* Apuntes Disponibles */}
+        {/* Muro de Pedidos (Bounties Feed) */}
         <section className="py-12">
           <div className="container px-4">
             <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
               <FileText className="h-6 w-6 text-primary" />
-              Apuntes Disponibles
+              Muro de Pedidos
             </h2>
 
-            {/* Grid de tarjetas de ejemplo */}
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="rounded-xl border bg-card p-6 shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="font-bold text-lg">Apunte de Sistemas {i}</h3>
-                    <span className="text-primary font-mono font-bold">1.5 CELO</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Resumen completo de la unidad {i}. Ideal para el final.
-                  </p>
-                  <Button variant="secondary" className="w-full">
-                    Ver Detalles
-                  </Button>
-                </div>
+              {mockBounties.map((bounty) => (
+                <Card key={bounty.id} className="flex flex-col justify-between">
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-lg font-bold">{bounty.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4 flex flex-col gap-3">
+                    <p className="text-sm text-muted-foreground">{bounty.description}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-primary">{bounty.reward} CELO</span>
+                    </div>
+                    <Button variant="secondary" className="mt-2 self-start">
+                      Ofrecer mis Apuntes
+                    </Button>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </div>
@@ -77,13 +129,65 @@ export default function Home() {
       {/* ---------- Footer (sticky, móvil) ---------- */}
       <footer className="sticky bottom-0 w-full border-t bg-background p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
         <div className="container max-w-md mx-auto flex gap-4">
-          <Button className="flex-1 gap-2 h-12 text-lg">
+          {/* Botón "Crear Pedido" abre un Sheet con formulario */}
+          <Sheet open={showForm} onOpenChange={setShowForm}>
+            <SheetTrigger asChild>
+              <Button className="flex-1 gap-2 h-12 text-lg">
+                <Upload className="h-5 w-5" />
+                Crear Pedido
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="h-3/4">
+              <SheetHeader className="mb-4">
+                <SheetTitle>Nuevo Pedido de Apunte</SheetTitle>
+              </SheetHeader>
+              <form onSubmit={handleSubmit} className="space-y-4 px-4">
+                <div className="flex flex-col space-y-1">
+                  <label className="text-sm font-medium">Título</label>
+                  <input
+                    type="text"
+                    name="title"
+                    required
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div className="flex flex-col space-y-1">
+                  <label className="text-sm font-medium">Descripción</label>
+                  <textarea
+                    name="description"
+                    required
+                    rows={3}
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div className="flex flex-col space-y-1">
+                  <label className="text-sm font-medium">Recompensa (CELO)</label>
+                  <input
+                    type="number"
+                    name="reward"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={formData.reward}
+                    onChange={handleInputChange}
+                    className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <Button type="submit" className="w-full">
+                  Crear Pedido
+                </Button>
+              </form>
+            </SheetContent>
+          </Sheet>
+
+          {/* Botón secundario opcional (mantener para compatibilidad) */}
+          <Button variant="secondary" className="flex-1 gap-2 h-12 text-lg">
             <ShoppingCart className="h-5 w-5" />
             Comprar
-          </Button>
-          <Button variant="secondary" className="flex-1 gap-2 h-12 text-lg">
-            <Upload className="h-5 w-5" />
-            Cargar
           </Button>
         </div>
       </footer>

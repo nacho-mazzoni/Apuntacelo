@@ -1,170 +1,164 @@
-// SPDX-License-Identifier: UNLICENSED
+ // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-// Uncomment this line to use console.log
-// import "hardhat/console.sol";
-
 /**
- * @title NotesMarketplace
- * @dev Marketplace para vender apuntes (notes) usando cUSD en la red Mainnet de Celo.
+ * @title BountyBasedNotes
+ * @dev Sistema de recompensas (bounties) para que estudiantes soliciten apuntes y
+ *      otros ofrezcan su material a cambio de CELO.
  *
- * Funcionalidades:
- *  - Registrar un apunte con IPFS hash, precio y nombre.
- *  - Comprar un apunte pagando en cUSD. Los fondos se transfieren al vendedor.
- *  - Marcar al comprador como "autorizado" para acceder al contenido.
- *  - Verificar si un usuario tiene acceso a un apunte.
+ *  Flujo:
+ *  1. Un usuario crea una solicitud (bounty) enviando CELO como escrow.
+ *  2. Otros usuarios pueden ofrecer un link/hash del material para esa solicitud.
+ *  3. El solicitante elige una oferta; el contrato transfiere la recompensa al ganador
+ *     y cierra la solicitud.
  *
- * La dirección del token cUSD en la Mainnet de Celo es:
- * 0x765DE816845861e75A25fCA122bb6898B8B1282a
- *
- * Se asume que el comprador aprueba previamente al contrato la transferencia
- * del monto necesario mediante `cUSD.approve(contractAddress, amount)`.
+ *  Todas las recompensas se manejan en la moneda nativa (CELO), por lo que
+ *  las funciones son `payable` y utilizan `address payable`.
  */
 
-interface IERC20 {
-    function transferFrom(address from, address to, uint256 amount) external returns (bool);
-    function decimals() external view returns (uint8);
-}
+contract BountyBasedNotes {
+    // -------------------------------------------------------------------------
+    // Enumeraciones y Structs
+    // -------------------------------------------------------------------------
 
-/**
- * @dev Estructura que representa un apunte (note).
- */
-struct Note {
-    address seller;   // propietario/vendedor del apunte
-    string ipfsHash;  // hash de IPFS donde está el contenido
-    uint256 price;    // precio en cUSD (en wei, 18 decimales)
-    string name;      // nombre descriptivo del apunte
-    bool exists;      // flag para validar existencia
-}
+    enum Status { Open, Closed }
 
-/**
- * @dev Contrato principal del marketplace.
- */
-contract NotesMarketplace {
-    // Dirección del token cUSD en la Mainnet de Celo.
-    address public constant CUSD_ADDRESS = 0x765DE816845861e75A25fCA122bb6898B8B1282a;
-    IERC20 private immutable cUSD;
-
-    // Contador autoincremental para generar IDs de notas.
-    uint256 private nextNoteId;
-
-    // Mapeo de ID de note => struct Note
-    mapping(uint256 => Note) public notes;
-
-    // Mapeo de ID de note => (comprador => autorizado)
-    mapping(uint256 => mapping(address => bool)) private accessGranted;
-
-    // Eventos
-    event NoteListed(
-        uint256 indexed noteId,
-        address indexed seller,
-        string name,
-        uint256 price,
-        string ipfsHash
-    );
-    event NotePurchased(
-        uint256 indexed noteId,
-        address indexed buyer,
-        uint256 price
-    );
-
-    /**
-     * @dev Constructor. Instancia la interfaz cUSD.
-     */
-    constructor() {
-        cUSD = IERC20(CUSD_ADDRESS);
-        nextNoteId = 1; // iniciamos en 1 para evitar id 0
+    struct Request {
+        uint256 id;
+        address payable requester; // quien crea el bounty
+        string title;
+        string description;
+        uint256 reward;           // cantidad de CELO en wei (escrow)
+        Status status;
     }
 
-    /**
-     * @dev Permite a un usuario registrar un nuevo apunte.
-     * @param _ipfsHash Hash de IPFS del contenido.
-     * @param _price Precio en cUSD (en wei, 18 decimales).
-     * @param _name Nombre descriptivo del apunte.
-     * @return noteId ID asignado al apunte registrado.
-     */
-    function listNote(
-        string calldata _ipfsHash,
-        uint256 _price,
-        string calldata _name
-    ) external returns (uint256 noteId) {
-        require(_price > 0, "El precio debe ser mayor a 0");
-        require(bytes(_ipfsHash).length > 0, "IPFS hash requerido");
-        require(bytes(_name).length > 0, "Nombre requerido");
+    struct Offer {
+        address payable seller; // quien ofrece el apunte
+        string link;            // IPFS hash o URL del material
+    }
 
-        noteId = nextNoteId;
-        notes[noteId] = Note({
-            seller: msg.sender,
-            ipfsHash: _ipfsHash,
-            price: _price,
-            name: _name,
-            exists: true
+    // -------------------------------------------------------------------------
+    // Almacenamiento
+    // -------------------------------------------------------------------------
+
+    uint256 private _nextRequestId = 1; // comenzamos en 1
+    mapping(uint256 => Request) public requests;                 // requestId => Request
+    mapping(uint256 => Offer[]) public offersByRequest;          // requestId => array of offers
+
+    // -------------------------------------------------------------------------
+    // Eventos
+    // -------------------------------------------------------------------------
+
+    event RequestCreated(
+        uint256 indexed requestId,
+        address indexed requester,
+        string title,
+        uint256 reward
+    );
+
+    event OfferSubmitted(
+        uint256 indexed requestId,
+        address indexed seller,
+        string link
+    );
+
+    event OfferAccepted(
+        uint256 indexed requestId,
+        address indexed seller,
+        uint256 reward
+    );
+
+    // -------------------------------------------------------------------------
+    // Funciones del contrato
+    // -------------------------------------------------------------------------
+
+    /**
+     * @dev Crea una nueva solicitud de apuntes.
+     *      El llamante debe enviar la recompensa en CELO como `msg.value`.
+     *
+     * @param _title      Título descriptivo de la solicitud.
+     * @param _description Descripción más detallada.
+     */
+    function createRequest(string calldata _title, string calldata _description)
+        external
+        payable
+    {
+        require(msg.value > 0, "La recompensa debe ser mayor a 0");
+
+        uint256 requestId = _nextRequestId;
+        requests[requestId] = Request({
+            id: requestId,
+            requester: payable(msg.sender),
+            title: _title,
+            description: _description,
+            reward: msg.value,
+            status: Status.Open
         });
 
-        // El vendedor siempre tiene acceso a su propio apunte
-        accessGranted[noteId][msg.sender] = true;
+        _nextRequestId += 1;
 
-        emit NoteListed(noteId, msg.sender, _name, _price, _ipfsHash);
-
-        nextNoteId += 1;
+        emit RequestCreated(requestId, msg.sender, _title, msg.value);
     }
 
     /**
-     * @dev Compra un apunte pagando en cUSD.
-     *      El comprador debe haber llamado `cUSD.approve(contractAddr, amount)` previamente.
-     * @param _noteId ID del apunte a comprar.
+     * @dev Permite a un estudiante ofrecer su material para una solicitud existente.
+     *
+     * @param _requestId Id de la solicitud a la que se ofrece el apunte.
+     * @param _link      IPFS hash o URL del material.
      */
-    function purchaseNote(uint256 _noteId) external {
-        Note memory note = notes[_noteId];
-        require(note.exists, "Apunte inexistente");
-        require(!accessGranted[_noteId][msg.sender], "Ya tiene acceso al apunte");
+    function offerNote(uint256 _requestId, string calldata _link) external {
+        Request memory req = requests[_requestId];
+        require(req.id != 0, "Solicitud no existe");
+        require(req.status == Status.Open, "Solicitud cerrada");
 
-        // Transferir cUSD del comprador al vendedor
-        bool success = cUSD.transferFrom(msg.sender, note.seller, note.price);
-        require(success, "Transferencia de cUSD fallida");
+        offersByRequest[_requestId].push(
+            Offer({ seller: payable(msg.sender), link: _link })
+        );
 
-        // Conceder acceso al comprador
-        accessGranted[_noteId][msg.sender] = true;
-
-        emit NotePurchased(_noteId, msg.sender, note.price);
+        emit OfferSubmitted(_requestId, msg.sender, _link);
     }
 
     /**
-     * @dev Verifica si un usuario tiene acceso al contenido del apunte.
-     * @param _noteId ID del apunte.
-     * @param _user Dirección del usuario a consultar.
-     * @return true si el usuario es el vendedor o ha comprado el apunte.
+     * @dev El solicitante original acepta una oferta concreta.
+     *      Se transfiere la recompensa al vendedor y la solicitud se marca como cerrada.
+     *
+     * @param _requestId Id de la solicitud.
+     * @param _offerIndex Índice de la oferta dentro del array `offersByRequest`.
      */
-    function hasAccess(uint256 _noteId, address _user) external view returns (bool) {
-        return accessGranted[_noteId][_user];
+    function acceptOffer(uint256 _requestId, uint256 _offerIndex) external {
+        Request storage req = requests[_requestId];
+        require(req.id != 0, "Solicitud no existe");
+        require(req.status == Status.Open, "Solicitud ya cerrada");
+        require(msg.sender == req.requester, "Solo el solicitante puede aceptar");
+
+        Offer memory selectedOffer = offersByRequest[_requestId][_offerIndex];
+        require(selectedOffer.seller != address(0), "Oferta invalida");
+
+        // Transferir la recompensa al vendedor
+        (bool sent, ) = selectedOffer.seller.call{value: req.reward}("");
+        require(sent, "Error al transferir CELO");
+
+        // Cerrar la solicitud
+        req.status = Status.Closed;
+
+        emit OfferAccepted(_requestId, selectedOffer.seller, req.reward);
     }
 
+    // -------------------------------------------------------------------------
+    // Funciones auxiliares (view)
+    // -------------------------------------------------------------------------
+
     /**
-     * @dev Obtiene la información pública de un apunte.
-     *      Sólo se devuelve el IPFS hash si el solicitante tiene acceso.
-     * @param _noteId ID del apunte.
-     * @return seller Dirección del vendedor.
-     * @return price Precio en wei.
-     * @return name Nombre descriptivo.
-     * @return ipfsHash Hash de IPFS (solo si tiene acceso, de lo contrario string vacío).
+     * @dev Obtiene la lista completa de ofertas para una solicitud.
+     *
+     * @param _requestId Id de la solicitud.
+     * @return Array de ofertas.
      */
-    function getNote(uint256 _noteId) external view returns (
-        address seller,
-        uint256 price,
-        string memory name,
-        string memory ipfsHash
-    ) {
-        Note memory note = notes[_noteId];
-        require(note.exists, "Apunte inexistente");
-
-        seller = note.seller;
-        price = note.price;
-        name = note.name;
-
-        if (accessGranted[_noteId][msg.sender]) {
-            ipfsHash = note.ipfsHash;
-        } else {
-            ipfsHash = "";
-        }
+    function getOffers(uint256 _requestId)
+        external
+        view
+        returns (Offer[] memory)
+    {
+        return offersByRequest[_requestId];
     }
 }
