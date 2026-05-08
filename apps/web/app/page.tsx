@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,7 +10,15 @@ import {
 } from "@/components/ui/card";
 import { ConnectButton } from "@/components/connect-button";
 import { UserBalance } from "@/components/user-balance";
-import { Zap, Upload, ShoppingCart, FileText, MessageSquare, Send } from "lucide-react";
+import {
+  Zap,
+  Upload,
+  ShoppingCart,
+  FileText,
+  MessageSquare,
+  Send,
+  Star,
+} from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -19,9 +26,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-
-// Importación corregida del hook XMTP usando ruta relativa
-import { useXmtp } from "../hooks/useXmtp";
+import { useXmtp } from "@/hooks/useXmtp";
 
 // -----------------------------------------------------------------------------
 // Mock de datos de bounty (para demostrar UI). En producción se leerá del contrato.
@@ -30,7 +35,7 @@ const mockBounties = [
   {
     id: 1,
     title: "Final de Física II UTN",
-    reward: 2.5, // CELO
+    reward: 2.5,
     description: "Necesito apuntes del último parcial.",
     requester: "0x1111111111111111111111111111111111111111",
   },
@@ -50,8 +55,16 @@ const mockBounties = [
   },
 ];
 
+// -----------------------------------------------------------------------------
+// Helper: cálculo de promedio de reputación
+// -----------------------------------------------------------------------------
+const getAverage = (rep: number, completed: number): string | null => {
+  if (completed === 0) return null;
+  return (rep / completed).toFixed(2);
+};
+
 export default function Home() {
-  // -------- Estado de formulario para "Crear Pedido" ----------
+  // -------- Estado del formulario de "Crear Pedido" ----------
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
@@ -64,7 +77,12 @@ export default function Home() {
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messageInput, setMessageInput] = useState("");
 
-  // -------- Hook XMTP ----------
+  // -------- Estado del selector de rating al aceptar una oferta ----------
+  const [ratingFormOpen, setRatingFormOpen] = useState(false);
+  const [selectedBounty, setSelectedBounty] = useState<any>(null);
+  const [rating, setRating] = useState(5);
+
+  // -------- Hook XMTP (solo se ejecuta después de que el provider de Wagmi está listo) ----------
   const { client, conversations, loading, address } = useXmtp();
 
   // -------- Handlers ----------
@@ -89,6 +107,26 @@ export default function Home() {
     setActiveTab("inbox");
   };
 
+  const openRatingSheet = (bounty: any) => {
+    setSelectedBounty(bounty);
+    setRating(5);
+    setRatingFormOpen(true);
+  };
+
+  const submitRating = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!client || !selectedBounty) return;
+    // Aquí se llamaría al método `acceptOffer(requestId, offerIndex, rating)` del contrato
+    console.log(
+      "Rating submitted",
+      selectedBounty.id,
+      rating,
+      "(simulado)"
+    );
+    setRatingFormOpen(false);
+    setSelectedBounty(null);
+  };
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedConversation || !messageInput.trim()) return;
@@ -101,7 +139,7 @@ export default function Home() {
 
   // Mensajes de la conversación seleccionada
   const [messages, setMessages] = useState<any[]>([]);
-  useState(() => {
+  useEffect(() => {
     async function loadMsgs() {
       if (!selectedConversation) {
         setMessages([]);
@@ -118,13 +156,13 @@ export default function Home() {
       {/* ---------- Header (sticky) ---------- */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between px-4">
-          {/* Left side: ConnectButton + UserBalance */}
+          {/* izquierda */}
           <div className="flex items-center gap-4">
             <ConnectButton />
             <UserBalance />
           </div>
 
-          {/* Right side: botón principal "Pedir Apunte" */}
+          {/* botón principal "Pedir Apunte" */}
           <Button variant="outline" size="sm" className="gap-2">
             <Upload className="h-4 w-4" />
             <span className="hidden sm:inline">Pedir Apunte</span>
@@ -132,9 +170,9 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ---------- Main content ---------- */}
+      {/* ---------- Main ---------- */}
       <main className="flex-1">
-        {/* Hero minimalista */}
+        {/* Hero */}
         <section className="py-8 text-center border-b bg-primary/5">
           <div className="container px-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 mb-4 text-xs font-medium bg-primary/10 text-primary rounded-full border border-primary/20">
@@ -143,14 +181,15 @@ export default function Home() {
             </div>
             <h1 className="text-3xl font-bold tracking-tight">Apuntacelo</h1>
             <p className="text-muted-foreground mt-2 text-sm">
-              Intercambio de apuntes basado en recompensas (Bounties).
+              Intercambio de apuntes basado en recompensas (Bounties) con
+              reputación.
             </p>
           </div>
         </section>
 
-        {/* ---------- Contenido dinámico ---------- */}
+        {/* Contenido dinámico */}
         {activeTab === "feed" ? (
-          // Muro de Pedidos (Bounties Feed)
+          // Muro de Pedidos
           <section className="py-12">
             <div className="container px-4">
               <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
@@ -160,20 +199,31 @@ export default function Home() {
 
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {mockBounties.map((bounty) => (
-                  <Card key={bounty.id} className="flex flex-col justify-between">
+                  <Card
+                    key={bounty.id}
+                    className="flex flex-col justify-between"
+                  >
                     <CardHeader className="p-4">
                       <CardTitle className="text-lg font-bold">
                         {bounty.title}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 pb-4 flex flex-col gap-3">
-                      <p className="text-sm text-muted-foreground">{bounty.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {bounty.description}
+                      </p>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-primary">{bounty.reward} CELO</span>
+                        <span className="font-mono font-bold text-primary">
+                          {bounty.reward} CELO
+                        </span>
                       </div>
+
+                      {/* Botón de oferta */}
                       <Button variant="secondary" className="self-start">
                         Ofrecer mis Apuntes
                       </Button>
+
+                      {/* Botón de chat */}
                       <Button
                         variant="outline"
                         size="sm"
@@ -198,14 +248,17 @@ export default function Home() {
                 Chats
               </h2>
 
-              {loading && <p className="text-muted-foreground">Cargando chats...</p>}
+              {loading && (
+                <p className="text-muted-foreground">Cargando chats...</p>
+              )}
 
               {/* Lista de conversaciones */}
               {!selectedConversation && (
                 <>
                   {conversations.length === 0 ? (
                     <p className="text-muted-foreground">
-                      No tienes chats activos. ¡Haz una oferta por un apunte para empezar!
+                      No tienes chats activos. ¡Haz una oferta por un apunte
+                      para empezar!
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -215,9 +268,10 @@ export default function Home() {
                           variant="ghost"
                           className="w-full justify-start"
                           onClick={async () => {
-                            const fullConv = await client!.conversations.newConversation(
-                              conv.peerAddress
-                            );
+                            const fullConv =
+                              await client!.conversations.newConversation(
+                                conv.peerAddress
+                              );
                             setSelectedConversation(fullConv);
                           }}
                         >
@@ -255,7 +309,7 @@ export default function Home() {
                     ))}
                   </div>
 
-                  {/* Input para enviar mensaje */}
+                  {/* Input de envío */}
                   <form onSubmit={sendMessage} className="flex gap-2">
                     <input
                       type="text"

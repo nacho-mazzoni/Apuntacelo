@@ -3,11 +3,9 @@ import { useAccount, useSigner } from "wagmi";
 import { Client, Conversation } from "@xmtp/xmtp-js";
 
 /**
- * Hook que inicializa el cliente XMTP a partir del `signer` de la wallet conectada.
- * - `client`  : instancia de XMTP una vez autenticada.
- * - `conversations` : lista de conversaciones activas.
- * - `loading` : indica si se está inicializando o refrescando.
- * - `address` : dirección de la cuenta conectada (para uso posterior).
+ * Hook que inicializa el cliente XMTP a partir del signer de la wallet conectada.
+ * Este hook **solo** debe usarse dentro del árbol de componentes que está envuelto
+ * por `WalletProvider` (que a su vez provee los contextos de Wagmi).
  */
 export function useXmtp() {
   const { address, isConnected } = useAccount();
@@ -27,7 +25,7 @@ export function useXmtp() {
       }
       setLoading(true);
       try {
-        // En entorno de producción cambiar a `prod`. Aquí usamos `dev` para pruebas.
+        // Usar entorno de desarrollo por ahora
         const xmtp = await Client.create(signer, { env: "dev" });
         setClient(xmtp);
         const convs = await xmtp.conversations.list();
@@ -43,7 +41,7 @@ export function useXmtp() {
     init();
   }, [isConnected, signer]);
 
-  // Refrescar la lista de conversaciones cada cierto tiempo (10s)
+  // Refrescar la lista de conversaciones cada 10 s
   useEffect(() => {
     if (!client) return;
     const interval = setInterval(async () => {
