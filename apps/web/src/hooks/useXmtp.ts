@@ -1,27 +1,48 @@
 import { useEffect, useState } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useWalletClient } from "wagmi";
 import { Client, Conversation } from "@xmtp/xmtp-js";
-import { useEthersSigner } from "./useEthersSigner";
 
 /**
- * Hook que inicializa el cliente XMTP usando un Signer de ethers.js.
- * El Signer se obtiene a través del adaptador oficial de Wagmi a ethers.
+ * Hook que inicializa el cliente XMTP usando un Signer adaptado desde
+ * la wallet de Viem provista por Wagmi v2.
  *
- * Este hook **solo** debe usarse dentro del árbol de componentes envuelto por
+ * No se utiliza ethers.js; el adaptador traduce la API de Viem a la
+ * interfaz mínima requerida por XMTP (getAddress y signMessage).
+ *
+ * Este hook **solo** debe ejecutarse dentro del árbol envuelto por
  * `WalletProvider`.
  */
 export function useXmtp() {
-  const { address, isConnected } = useAccount();
-  const signer = useEthersSigner();
+  const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
+
+  // Adaptador que cumple la interfaz esperada por XMTP
+  const signer =
+    walletClient && address
+      ? {
+          getAddress: async () => address,
+          signMessage: async (message: string | Uint8Array) => {
+            // Viem acepta tanto string como { raw: Uint8Array }
+            const signed = await walletClient.signMessage({
+              message:
+                typeof message === "string"
+                  ? message
+                  : { raw: message },
+            });
+            // El método devuelve una firma en formato hex (string)
+            return signed;
+          },
+        }
+      : null;
 
   const [client, setClient] = useState<Client | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Inicializar cliente XMTP cuando la wallet está conectada y hay signer
+  // Inicializar XMTP cuando exista un signer válido
   useEffect(() => {
     async function init() {
-      if (!isConnected || !signer) {
+      if (!signer) {
         setClient(null);
         setConversations([]);
         return;
@@ -29,7 +50,6 @@ export function useXmtp() {
 
       setLoading(true);
       try {
-        // XMTP descubrirá el entorno (dev o prod) según la red configurada.
         const xmtp = await Client.create(signer);
         setClient(xmtp);
         const convs = await xmtp.conversations.list();
@@ -43,7 +63,7 @@ export function useXmtp() {
       }
     }
     init();
-  }, [isConnected, signer]);
+  }, [signer]);
 
   // Refrescar la lista de conversaciones cada 10 s
   useEffect(() => {
