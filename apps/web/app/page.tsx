@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
-  Button,
-  // UI components
-} from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/card";
 import { ConnectButton } from "@/components/connect-button";
 import { UserBalance } from "@/components/user-balance";
-import { Zap, Upload, FileText, MessageSquare, Send } from "lucide-react";
+import { Zap, Upload, ShoppingCart, FileText, MessageSquare, Send } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -17,7 +20,8 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-import { useXmtp } from "@/hooks/useXmtp";
+// Importación corregida del hook XMTP usando ruta relativa
+import { useXmtp } from "../hooks/useXmtp";
 
 // -----------------------------------------------------------------------------
 // Mock de datos de bounty (para demostrar UI). En producción se leerá del contrato.
@@ -60,7 +64,7 @@ export default function Home() {
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messageInput, setMessageInput] = useState("");
 
-  // -------- XMTP Hook ----------
+  // -------- Hook XMTP ----------
   const { client, conversations, loading, address } = useXmtp();
 
   // -------- Handlers ----------
@@ -71,7 +75,7 @@ export default function Home() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Crear bounty:", formData);
     setFormData({ title: "", description: "", reward: "" });
@@ -85,19 +89,19 @@ export default function Home() {
     setActiveTab("inbox");
   };
 
-  const sendMessage = async (e: FormEvent) => {
+  const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedConversation || !messageInput.trim()) return;
     await selectedConversation.send(messageInput.trim());
     setMessageInput("");
-    // Forzar recarga de mensajes
+    // Recargar mensajes
     const msgs = await selectedConversation.messages();
     setMessages(msgs);
   };
 
   // Mensajes de la conversación seleccionada
   const [messages, setMessages] = useState<any[]>([]);
-  useEffect(() => {
+  useState(() => {
     async function loadMsgs() {
       if (!selectedConversation) {
         setMessages([]);
@@ -109,7 +113,6 @@ export default function Home() {
     loadMsgs();
   }, [selectedConversation]);
 
-  // -----------------------------------------------------------------
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* ---------- Header (sticky) ---------- */}
@@ -145,7 +148,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ---------- Contenido dinámico según pestaña ---------- */}
+        {/* ---------- Contenido dinámico ---------- */}
         {activeTab === "feed" ? (
           // Muro de Pedidos (Bounties Feed)
           <section className="py-12">
@@ -157,28 +160,20 @@ export default function Home() {
 
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {mockBounties.map((bounty) => (
-                  <Card
-                    key={bounty.id}
-                    className="flex flex-col justify-between"
-                  >
+                  <Card key={bounty.id} className="flex flex-col justify-between">
                     <CardHeader className="p-4">
                       <CardTitle className="text-lg font-bold">
                         {bounty.title}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 pb-4 flex flex-col gap-3">
-                      <p className="text-sm text-muted-foreground">
-                        {bounty.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground">{bounty.description}</p>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-primary">
-                          {bounty.reward} CELO
-                        </span>
+                        <span className="font-mono font-bold text-primary">{bounty.reward} CELO</span>
                       </div>
                       <Button variant="secondary" className="self-start">
                         Ofrecer mis Apuntes
                       </Button>
-                      {/* Botón para iniciar chat con el solicitante */}
                       <Button
                         variant="outline"
                         size="sm"
@@ -200,20 +195,17 @@ export default function Home() {
             <div className="container px-4">
               <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
                 <MessageSquare className="h-6 w-6 text-primary" />
-                Bandeja de Entrada
+                Chats
               </h2>
 
-              {loading && (
-                <p className="text-muted-foreground">Cargando chats...</p>
-              )}
+              {loading && <p className="text-muted-foreground">Cargando chats...</p>}
 
-              {/* Si no hay conversación activa, mostrar lista de conversaciones */}
+              {/* Lista de conversaciones */}
               {!selectedConversation && (
                 <>
                   {conversations.length === 0 ? (
                     <p className="text-muted-foreground">
-                      No tienes chats activos. ¡Haz una oferta por un apunte
-                      para empezar!
+                      No tienes chats activos. ¡Haz una oferta por un apunte para empezar!
                     </p>
                   ) : (
                     <div className="space-y-2">
@@ -223,10 +215,9 @@ export default function Home() {
                           variant="ghost"
                           className="w-full justify-start"
                           onClick={async () => {
-                            const fullConv =
-                              await client!.conversations.newConversation(
-                                conv.peerAddress
-                              );
+                            const fullConv = await client!.conversations.newConversation(
+                              conv.peerAddress
+                            );
                             setSelectedConversation(fullConv);
                           }}
                         >
@@ -238,7 +229,7 @@ export default function Home() {
                 </>
               )}
 
-              {/* Vista de conversación concreta */}
+              {/* Conversación activa */}
               {selectedConversation && (
                 <div className="flex flex-col h-[60vh]">
                   <div className="flex-1 overflow-y-auto space-y-3 mb-4 p-2 border rounded-md">
@@ -324,9 +315,7 @@ export default function Home() {
                   />
                 </div>
                 <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">
-                    Recompensa (CELO)
-                  </label>
+                  <label className="text-sm font-medium">Recompensa (CELO)</label>
                   <input
                     type="number"
                     name="reward"
@@ -345,7 +334,7 @@ export default function Home() {
             </SheetContent>
           </Sheet>
 
-          {/* Botón de "Chats" */}
+          {/* Botón "Chats" */}
           <Button
             variant={activeTab === "inbox" ? "default" : "ghost"}
             className="flex-1 gap-2 h-12 text-lg"
