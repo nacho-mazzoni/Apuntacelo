@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,9 +14,8 @@ import { UserBalance } from "@/components/user-balance";
 import {
   Zap,
   Upload,
-  ShoppingCart,
   FileText,
-  Star,
+  MessageSquare,
 } from "lucide-react";
 import {
   Sheet,
@@ -28,74 +28,52 @@ import { truncateAddress } from "@/lib/app-utils";
 
 // -----------------------------------------------------------------------------
 // Mock de datos de bounty (para demostrar UI). En producción se leerá del contrato.
-// Cada bounty incluye información simulada de reputación y dirección del ofertante.
 // -----------------------------------------------------------------------------
-type Bounty = {
-  id: number;
-  title: string;
-  reward: number; // CELO
-  description: string;
-  seller: `0x${string}`; // dirección simulada del ofertante
-  reputation: number; // puntaje total acumulado
-  completed: number; // tareas completadas
-};
-
-const mockBounties: Bounty[] = [
+const mockBounties = [
   {
     id: 1,
     title: "Final de Física II UTN",
-    reward: 2.5,
+    reward: 2.5, // CELO
     description: "Necesito apuntes del último parcial.",
-    seller: "0xAbc1230000000000000000000000000000000001",
-    reputation: 12,
-    completed: 3,
   },
   {
     id: 2,
     title: "Apuntes de Álgebra Lineal",
     reward: 1.8,
     description: "Busco material completo para el examen.",
-    seller: "0xDef4560000000000000000000000000000000002",
-    reputation: 5,
-    completed: 1,
   },
   {
     id: 3,
     title: "Tema de Redes Blockchain",
     reward: 3,
     description: "Quiero una guía práctica para la entrega.",
-    seller: "0x9876543210abcdef9876543210abcdef98765432",
-    reputation: 0,
-    completed: 0,
   },
 ];
 
-// -----------------------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------------------
-/**
- * Calcula el promedio de reputación (total / tareas completadas).
- * Si no hay tareas completadas devuelve null.
- */
-const getAverage = (rep: number, completed: number): string | null => {
-  if (completed === 0) return null;
-  const avg = rep / completed;
-  return avg.toFixed(2);
-};
+// Mock de chats
+const mockChats = [
+  {
+    id: 1,
+    participant: "0xAbc1230000000000000000000000000000000001",
+    lastMessage: "¿Tenés los apuntes de la última clase?",
+  },
+  {
+    id: 2,
+    participant: "0xDef4560000000000000000000000000000000002",
+    lastMessage: "¡Gracias por la ayuda!",
+  },
+];
 
 export default function Home() {
-  // ---------- Estado del formulario de "Crear Pedido" ----------
-  const [showForm, setShowForm] = useState(false);
+  // ---------- Estado ----------
+  const [showForm, setShowForm] = useState(false); // controla el Sheet "Nuevo Pedido"
+  const [activeTab, setActiveTab] = useState<"explore" | "messages">("explore"); // vista actual
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     reward: "",
   });
-
-  // ---------- Estado del selector de rating al aceptar una oferta ----------
-  const [ratingFormOpen, setRatingFormOpen] = useState(false);
-  const [selectedBounty, setSelectedBounty] = useState<Bounty | null>(null);
-  const [rating, setRating] = useState(5);
 
   // ---------- Handlers ----------
   const handleInputChange = (
@@ -113,25 +91,7 @@ export default function Home() {
     setShowForm(false);
   };
 
-  const openRatingSheet = (bounty: Bounty) => {
-    setSelectedBounty(bounty);
-    setRating(5);
-    setRatingFormOpen(true);
-  };
-
-  const submitRating = (e: React.FormEvent) => {
-    e.preventDefault();
-    // En producción se llamaría a `acceptOffer(requestId, offerIndex, rating)`
-    console.log(
-      "Rating submitted",
-      selectedBounty?.id,
-      rating,
-      "(simulado)"
-    );
-    setRatingFormOpen(false);
-    setSelectedBounty(null);
-  };
-
+  // ---------- Render ----------
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* ---------- Header (sticky) ---------- */}
@@ -168,76 +128,103 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Muro de Pedidos (Bounties Feed) */}
-        <section className="py-12">
-          <div className="container px-4">
-            <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
-              <FileText className="h-6 w-6 text-primary" />
-              Muro de Pedidos
-            </h2>
+        {/* Contenido dependiente de la pestaña */}
+        {activeTab === "explore" ? (
+          // Muro de Pedidos (Bounties Feed)
+          <section className="py-12">
+            <div className="container px-4">
+              <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+                <FileText className="h-6 w-6 text-primary" />
+                Muro de Pedidos
+              </h2>
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {mockBounties.map((bounty) => (
-                <Card
-                  key={bounty.id}
-                  className="flex flex-col justify-between"
-                >
-                  <CardHeader className="p-4">
-                    <CardTitle className="text-lg font-bold">
-                      {bounty.title}
-                    </CardTitle>
-
-                    {/* Karma y dirección del ofertante */}
-                    <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                      <span className="font-mono">
-                        {truncateAddress(bounty.seller)}
-                      </span>
-                      <Star className="h-4 w-4 text-yellow-400" />
-                      {bounty.completed > 0 ? (
-                        <span>{getAverage(bounty.reputation, bounty.completed)} / 5</span>
-                      ) : (
-                        <span className="italic text-gray-500">Nuevo</span>
-                      )}
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="px-4 pb-4 flex flex-col gap-3">
-                    <p className="text-sm text-muted-foreground">
-                      {bounty.description}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-primary">
-                        {bounty.reward} CELO
-                      </span>
-                    </div>
-                    <Button variant="secondary" className="self-start">
-                      Ofrecer mis Apuntes
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="self-start"
-                      onClick={() => openRatingSheet(bounty)}
-                    >
-                      Aceptar Oferta
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {mockBounties.map((bounty) => (
+                  <Card
+                    key={bounty.id}
+                    className="flex flex-col justify-between"
+                  >
+                    <CardHeader className="p-4">
+                      <CardTitle className="text-lg font-bold">
+                        {bounty.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4 flex flex-col gap-3">
+                      <p className="text-sm text-muted-foreground">
+                        {bounty.description}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-primary">
+                          {bounty.reward} CELO
+                        </span>
+                      </div>
+                      <Button variant="secondary" className="self-start">
+                        Ofrecer mis Apuntes
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        ) : (
+          // Vista de Mensajes (Chats)
+          <section className="py-12">
+            <div className="container px-4">
+              <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+                <MessageSquare className="h-6 w-6 text-primary" />
+                Chats
+              </h2>
+
+              <div className="space-y-4">
+                {mockChats.map((chat) => (
+                  <div
+                    key={chat.id}
+                    className="flex items-center justify-between rounded-lg border p-4"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-mono text-sm">
+                        {truncateAddress(chat.participant)}
+                      </span>
+                      <span className="text-muted-foreground text-sm">
+                        {chat.lastMessage}
+                      </span>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      Abrir
+                    </Button>
+                  </div>
+                ))}
+                {mockChats.length === 0 && (
+                  <p className="text-muted-foreground text-center">
+                    No tenés conversaciones todavía.
+                  </p>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
       </main>
 
       {/* ---------- Footer (sticky, móvil) ---------- */}
       <footer className="sticky bottom-0 w-full border-t bg-background p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-        <div className="container max-w-md mx-auto flex gap-4">
-          {/* Botón "Crear Pedido" abre un Sheet con formulario */}
+        <div className="container max-w-md mx-auto flex gap-2">
+          {/* Botón "Explorar" */}
+          <Button
+            variant={activeTab === "explore" ? "default" : "ghost"}
+            className="flex-1 gap-2"
+            onClick={() => setActiveTab("explore")}
+          >
+            <Zap className="h-5 w-5" />
+            <span className="hidden sm:inline">Explorar</span>
+          </Button>
+
+          {/* Botón "Nuevo Pedido" (abre Sheet) */}
           <Sheet open={showForm} onOpenChange={setShowForm}>
             <SheetTrigger asChild>
-              <Button className="flex-1 gap-2 h-12 text-lg">
+              <Button variant="default" className="flex-1 gap-2">
                 <Upload className="h-5 w-5" />
-                Crear Pedido
+                <span className="hidden sm:inline">Nuevo Pedido</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="bottom" className="h-3/4">
@@ -287,52 +274,17 @@ export default function Home() {
             </SheetContent>
           </Sheet>
 
-          {/* Botón secundario opcional (mantener para compatibilidad) */}
-          <Button variant="secondary" className="flex-1 gap-2 h-12 text-lg">
-            <ShoppingCart className="h-5 w-5" />
-            Comprar
+          {/* Botón "Chats" */}
+          <Button
+            variant={activeTab === "messages" ? "default" : "ghost"}
+            className="flex-1 gap-2"
+            onClick={() => setActiveTab("messages")}
+          >
+            <MessageSquare className="h-5 w-5" />
+            <span className="hidden sm:inline">Chats</span>
           </Button>
         </div>
       </footer>
-
-      {/* ---------- Sheet para calificar al aceptar una oferta ---------- */}
-      <Sheet open={ratingFormOpen} onOpenChange={setRatingFormOpen}>
-        <SheetContent side="bottom" className="h-3/4">
-          <SheetHeader className="mb-4">
-            <SheetTitle>Calificar al Vendedor</SheetTitle>
-          </SheetHeader>
-          <form onSubmit={submitRating} className="space-y-4 px-4">
-            <p className="text-sm text-muted-foreground">
-              Seleccioná una calificación de 1 a 5 estrellas para el vendedor del
-              bounty {selectedBounty?.title}
-            </p>
-            <div className="flex items-center gap-2">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <label key={i} className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    name="rating"
-                    value={i}
-                    checked={rating === i}
-                    onChange={() => setRating(i)}
-                    className="sr-only"
-                  />
-                  <Star
-                    className={`h-6 w-6 ${
-                      rating >= i
-                        ? "text-yellow-400 fill-current"
-                        : "text-gray-300"
-                    }`}
-                  />
-                </label>
-              ))}
-            </div>
-            <Button type="submit" className="w-full">
-              Enviar Calificación
-            </Button>
-          </form>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }
