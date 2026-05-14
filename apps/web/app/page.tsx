@@ -2,12 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ConnectButton } from "@/components/connect-button";
 import { UserBalance } from "@/components/user-balance";
 import {
@@ -26,7 +21,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useXmtp } from "@/hooks/useXmtp";
+import { useXmtp } from "../hooks/useXmtp";
 
 // -----------------------------------------------------------------------------
 // Mock de datos de bounty (para demostrar UI). En producción se leerá del contrato.
@@ -117,12 +112,7 @@ export default function Home() {
     e.preventDefault();
     if (!client || !selectedBounty) return;
     // Aquí se llamaría al método `acceptOffer(requestId, offerIndex, rating)` del contrato
-    console.log(
-      "Rating submitted",
-      selectedBounty.id,
-      rating,
-      "(simulado)"
-    );
+    console.log("Rating submitted", selectedBounty.id, rating, "(simulado)");
     setRatingFormOpen(false);
     setSelectedBounty(null);
   };
@@ -369,7 +359,9 @@ export default function Home() {
                   />
                 </div>
                 <div className="flex flex-col space-y-1">
-                  <label className="text-sm font-medium">Recompensa (CELO)</label>
+                  <label className="text-sm font-medium">
+                    Recompensa (CELO)
+                  </label>
                   <input
                     type="number"
                     name="reward"
