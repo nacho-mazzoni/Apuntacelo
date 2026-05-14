@@ -4,10 +4,9 @@ import { useWalletClient, useAccount } from "wagmi";
 
 /**
  * Hook que inicializa el cliente XMTP una única vez por sesión de wallet.
- * Evita bucles infinitos de solicitud de firma mediante dos referencias:
- *  - `isInitializing` evita lanzar varias inicializaciones en paralelo.
- *  - `hasInitialized` evita volver a iniciar después de una creación exitosa,
- *    a menos que la wallet se desconecte o que haya un error.
+ * Implementa un control estricto mediante un semáforo (`isInitializing`) y
+ * estabiliza las dependencias del `useEffect` para evitar bucles infinitos de
+ * solicitud de firma.
  */
 export function useXmtp() {
   const { address, isConnected } = useAccount();
@@ -16,27 +15,24 @@ export function useXmtp() {
   const [client, setClient] = useState<Client | null>(null);
   const [conversations, setConversations] = useState<any[]>([]);
 
-  /** Evita iniciar varias veces simultáneamente */
+  /** Semáforo que impide iniciar varias veces en paralelo */
   const isInitializing = useRef(false);
-  /** Marca si ya se ha creado el cliente con éxito */
-  const hasInitialized = useRef(false);
 
+  // -------------------------------------------------------------------------
+  // Inicialización del cliente XMTP
+  // -------------------------------------------------------------------------
   useEffect(() => {
-    // Sólo iniciar si la wallet está conectada y disponemos de dirección y cliente viem.
+    // Bloqueos iniciales: si ya hay cliente, ya estamos inicializando,
+    // o no tenemos los datos necesarios, salimos.
+    if (client || isInitializing.current) return;
     if (!isConnected || !address || !walletClient) return;
 
-    // Si ya hemos inicializado con éxito, no volver a intentar.
-    if (hasInitialized.current) return;
-
-    // Si ya hay una inicialización en curso, salir.
-    if (isInitializing.current) return;
-
-    // Marcar que estamos comenzando la inicialización.
+    // Marcamos el inicio del proceso de inicialización.
     isInitializing.current = true;
 
     const initXmtp = async () => {
       try {
-        // Signer adaptado a la interfaz mínima requerida por XMTP.
+        // Adapter del signer requerido por XMTP.
         const signer = {
           getAddress: async () => address,
           signMessage: async (message: string | Uint8Array) => {
@@ -46,34 +42,34 @@ export function useXmtp() {
           },
         };
 
-        // Crear el cliente XMTP (una sola petición de firma).
+        // Creamos el cliente XMTP (solo una petición de firma).
         const xmtpClient = await Client.create(signer as any, {
           env: "production",
         });
 
-        // Guardar cliente y marcar como inicializado.
+        // Guardamos el cliente y marcamos que la inicialización tuvo éxito.
         setClient(xmtpClient);
-        hasInitialized.current = true;
 
-        // Cargar conversaciones iniciales.
+        // Cargamos las conversaciones iniciales.
         const convs = await xmtpClient.conversations.list();
         setConversations(convs);
       } catch (error) {
         console.error("Error al crear cliente XMTP:", error);
-        // En caso de error permitimos reintentar la próxima vez.
-        hasInitialized.current = false;
+        // En caso de error, permitimos reintentar sin refrescar la página.
       } finally {
-        // Liberar el bloqueo sin importar el resultado.
+        // Liberamos el semáforo sin importar el resultado.
         isInitializing.current = false;
       }
     };
 
     initXmtp();
-    // Dependencias mínimas: solo los valores que realmente pueden cambiar y que
-    // son necesarios para iniciar una única vez.
-  }, [address, isConnected, walletClient]);
+    // Dependencias estabilizadas: solo address e isConnected.
+    // walletClient no se incluye para evitar re‑ejecuciones innecesarias.
+  }, [address, isConnected]);
 
-  // Opcional: refrescar conversaciones cada cierto tiempo cuando hay cliente.
+  // -------------------------------------------------------------------------
+  // Refresco periódico de conversaciones (opcional)
+  // -------------------------------------------------------------------------
   useEffect(() => {
     if (!client) return;
     const interval = setInterval(async () => {
