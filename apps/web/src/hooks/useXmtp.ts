@@ -64,9 +64,10 @@ export function useXmtp() {
     };
 
     initXmtp();
-    // Dependencias estabilizadas: solo address e isConnected.
-    // walletClient no se incluye para evitar bucles innecesarios.
-  }, [address, isConnected]);
+    // Dependencias estabilizadas: address (string) y disponibilidad de walletClient.
+    // Usamos !!walletClient para que el efecto solo se dispare cuando pasa de
+    // undefined/null a un valor válido, sin reaccionar a cambios internos del objeto.
+  }, [address, !!walletClient]);
 
   // -------------------------------------------------------------------------
   // Refresco periódico de conversaciones (opcional)
