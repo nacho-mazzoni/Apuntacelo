@@ -6,7 +6,7 @@ import { useWalletClient, useAccount } from "wagmi";
  * Hook que inicializa el cliente XMTP una única vez por sesión de wallet.
  * Implementa un control estricto mediante un semáforo (`isInitializing`) y
  * estabiliza las dependencias del `useEffect` para evitar bucles infinitos de
- * solicitud de firma.
+ * solicitud de firma, especialmente en entornos como MiniPay.
  */
 export function useXmtp() {
   const { address, isConnected } = useAccount();
@@ -22,9 +22,10 @@ export function useXmtp() {
   // Inicialización del cliente XMTP
   // -------------------------------------------------------------------------
   useEffect(() => {
-    // Bloqueos iniciales: si ya hay cliente, ya estamos inicializando,
-    // o no tenemos los datos necesarios, salimos.
+    // Guard clauses: si ya existe cliente o ya estamos inicializando,
+    // salimos inmediatamente.
     if (client || isInitializing.current) return;
+    // Necesitamos conexión, dirección y cliente de wallet para continuar.
     if (!isConnected || !address || !walletClient) return;
 
     // Marcamos el inicio del proceso de inicialización.
@@ -47,24 +48,24 @@ export function useXmtp() {
           env: "production",
         });
 
-        // Guardamos el cliente y marcamos que la inicialización tuvo éxito.
+        // Guardamos el cliente y, al existir uno, el semáforo puede permanecer true.
         setClient(xmtpClient);
 
-        // Cargamos las conversaciones iniciales.
+        // Cargamos conversaciones iniciales.
         const convs = await xmtpClient.conversations.list();
         setConversations(convs);
       } catch (error) {
         console.error("Error al crear cliente XMTP:", error);
-        // En caso de error, permitimos reintentar sin refrescar la página.
-      } finally {
-        // Liberamos el semáforo sin importar el resultado.
+        // Si ocurre un error (p.ej. usuario cancela la firma), permitimos re‑intento.
         isInitializing.current = false;
       }
+      // Nota: no se resetea el semáforo en el flujo exitoso; el guard clause
+      // `if (client || isInitializing.current) return;` evita re‑ejecuciones.
     };
 
     initXmtp();
     // Dependencias estabilizadas: solo address e isConnected.
-    // walletClient no se incluye para evitar re‑ejecuciones innecesarias.
+    // walletClient no se incluye para evitar bucles innecesarios.
   }, [address, isConnected]);
 
   // -------------------------------------------------------------------------
