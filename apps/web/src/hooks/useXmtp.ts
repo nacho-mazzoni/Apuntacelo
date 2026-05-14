@@ -13,7 +13,7 @@ import { Client, Conversation } from "@xmtp/xmtp-js";
  * `WalletProvider`.
  */
 export function useXmtp() {
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
 
   /**
@@ -45,15 +45,12 @@ export function useXmtp() {
    * Referencia que indica si ya hay una inicialización en curso.
    * Evita lanzar dos procesos de firma simultáneos.
    */
-  const initializingRef = useRef(false);
+  const isInitializing = useRef(false);
 
   // Inicializar XMTP cuando exista un signer válido y el cliente aún no exista.
   useEffect(() => {
-    // Si ya tenemos un cliente, no volver a inicializar.
-    if (client) return;
-
-    // Si ya hay una inicialización en curso, salir.
-    if (initializingRef.current) return;
+    // Bloqueo estricto: si ya estamos inicializando o ya hay cliente, salir.
+    if (isInitializing.current || client) return;
 
     // Si no hay signer disponible, limpiar estado y salir.
     if (!signer) {
@@ -61,6 +58,9 @@ export function useXmtp() {
       setConversations([]);
       return;
     }
+
+    // Marcar inicio del proceso de inicialización.
+    isInitializing.current = true;
 
     const init = async () => {
       setLoading(true);
@@ -73,19 +73,20 @@ export function useXmtp() {
         console.error("Error inicializando XMTP:", e);
         setClient(null);
         setConversations([]);
+        // Permitir reintento si falla la firma o la creación.
+        isInitializing.current = false;
       } finally {
         setLoading(false);
+        // Si no se había resetado en el catch, liberar el lock.
+        if (isInitializing.current) {
+          isInitializing.current = false;
+        }
       }
     };
 
-    // Marcar como inicializando y lanzar el proceso.
-    initializingRef.current = true;
-    init().finally(() => {
-      // Liberar la marca una vez terminado, sea éxito o error.
-      initializingRef.current = false;
-    });
+    init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, signer]); // dependencias estables gracias a `useMemo`
+  }, [address, isConnected]); // dependencias estables según requerimiento
 
   // Refrescar la lista de conversaciones cada 10 s
   useEffect(() => {
