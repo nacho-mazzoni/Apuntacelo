@@ -9,25 +9,30 @@ export function useXmtp() {
   const [client, setClient] = useState<Client | null>(null);
   const [conversations, setConversations] = useState<any[]>([]);
 
-  // EL CANDADO: Esta referencia no se resetea entre renders
-  const initializingRef = useRef(false);
+  /**
+   * Bloqueo estricto que impide iniciar varias veces el proceso
+   * de creación del cliente XMTP. Se reinicia al terminar
+   * (tanto en caso de éxito como de error) para que sea posible
+   * re‑intentar después de una desconexión o de un fallo.
+   */
+  const isInitializing = useRef(false);
 
   useEffect(() => {
-    const initXmtp = async () => {
-      // Si ya hay un cliente, o ya se está inicializando, o no hay wallet: SALIR.
-      if (
-        client ||
-        initializingRef.current ||
-        !isConnected ||
-        !address ||
-        !walletClient
-      ) {
-        return;
-      }
+    // Sólo intentar inicializar una vez que haya wallet conectada y dirección.
+    if (!isConnected || !address) return;
 
+    // Si ya tenemos cliente o ya estamos inicializando, no hacer nada.
+    if (client || isInitializing.current) return;
+
+    // Necesitamos un walletClient válido; si no lo hay, esperamos al próximo render.
+    if (!walletClient) return;
+
+    // Marcar que estamos en proceso de inicialización.
+    isInitializing.current = true;
+
+    const initXmtp = async () => {
       try {
-        initializingRef.current = true; // Bloqueamos la entrada
-        console.log("Iniciando XMTP... Prepará la firma.");
+        console.log("Iniciando XMTP… solicita firma una sola vez.");
 
         const signer = {
           getAddress: async () => address,
@@ -46,13 +51,17 @@ export function useXmtp() {
         const convs = await xmtpClient.conversations.list();
         setConversations(convs);
       } catch (error) {
-        console.error("Error en XMTP:", error);
-        initializingRef.current = false; // Solo si falla permitimos reintentar
+        console.error("Error al crear cliente XMTP:", error);
+        // En caso de error dejamos que pueda volver a intentarse.
+      } finally {
+        // Liberar el bloqueo sin importar el resultado.
+        isInitializing.current = false;
       }
     };
 
     initXmtp();
-  }, [address, isConnected, !!walletClient]); // Usamos booleanos para estabilizar las dependencias
+    // Dependencias mínimas según requerimiento: solo address e isConnected.
+  }, [address, isConnected]);
 
   return { client, conversations };
 }
