@@ -3,10 +3,13 @@ import { Client } from "@xmtp/xmtp-js";
 import { useWalletClient, useAccount } from "wagmi";
 
 /**
- * Hook que inicializa el cliente XMTP una única vez por sesión de wallet.
- * Implementa un control estricto mediante un semáforo (`isInitializing`) y
- * estabiliza las dependencias del `useEffect` para evitar bucles infinitos de
- * solicitud de firma, especialmente en entornos como MiniPay.
+ * Hook que permite cargar el cliente XMTP bajo demanda (lazy loading).
+ *
+ * - `initializeXmtp` lleva a cabo la firma y creación del cliente, usando un
+ *   semáforo (`isInitializing`) para evitar llamadas concurrentes.
+ * - El hook sigue exponiendo `client` y `conversations` para que el resto de la UI
+ *   pueda utilizarlos una vez estén listos.
+ * - La lógica de refresco periódico de conversaciones se mantiene.
  */
 export function useXmtp() {
   const { address, isConnected } = useAccount();
@@ -18,59 +21,51 @@ export function useXmtp() {
   /** Semáforo que impide iniciar varias veces en paralelo */
   const isInitializing = useRef(false);
 
-  // -------------------------------------------------------------------------
-  // Inicialización del cliente XMTP
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    // Guard clauses: si ya existe cliente o ya estamos inicializando,
-    // salimos inmediatamente.
-    if (client || isInitializing.current) return;
-    // Necesitamos conexión, dirección y cliente de wallet para continuar.
-    if (!isConnected || !address || !walletClient) return;
+  /**
+   * Inicializa XMTP bajo demanda.
+   * - Si ya existe `client` o ya está en proceso, no hace nada.
+   * - Si falta la wallet o la dirección, lanza un error.
+   */
+  const initializeXmtp = async (): Promise<void> => {
+    if (client) return; // ya está listo
+    if (isInitializing.current) return; // ya hay una inicialización en curso
 
-    // Marcamos el inicio del proceso de inicialización.
+    if (!isConnected || !address || !walletClient) {
+      throw new Error("Wallet no conectada o datos insuficientes para inicializar XMTP");
+    }
+
     isInitializing.current = true;
+    try {
+      const signer = {
+        getAddress: async () => address,
+        signMessage: async (message: string | Uint8Array) => {
+          return await walletClient.signMessage({
+            message: typeof message === "string" ? message : { raw: message },
+          });
+        },
+      };
 
-    const initXmtp = async () => {
-      try {
-        // Adapter del signer requerido por XMTP.
-        const signer = {
-          getAddress: async () => address,
-          signMessage: async (message: string | Uint8Array) => {
-            return await walletClient.signMessage({
-              message: typeof message === "string" ? message : { raw: message },
-            });
-          },
-        };
+      // Crear el cliente XMTP (solo una petición de firma)
+      const xmtpClient = await Client.create(signer as any, {
+        env: "production",
+      });
 
-        // Creamos el cliente XMTP (solo una petición de firma).
-        const xmtpClient = await Client.create(signer as any, {
-          env: "production",
-        });
+      setClient(xmtpClient);
 
-        // Guardamos el cliente y, al existir uno, el semáforo puede permanecer true.
-        setClient(xmtpClient);
-
-        // Cargamos conversaciones iniciales.
-        const convs = await xmtpClient.conversations.list();
-        setConversations(convs);
-      } catch (error) {
-        console.error("Error al crear cliente XMTP:", error);
-        // Si ocurre un error (p.ej. usuario cancela la firma), permitimos re‑intento.
-        isInitializing.current = false;
-      }
-      // Nota: no se resetea el semáforo en el flujo exitoso; el guard clause
-      // `if (client || isInitializing.current) return;` evita re‑ejecuciones.
-    };
-
-    initXmtp();
-    // Dependencias estabilizadas: address (string) y disponibilidad de walletClient.
-    // Usamos !!walletClient para que el efecto solo se dispare cuando pasa de
-    // undefined/null a un valor válido, sin reaccionar a cambios internos del objeto.
-  }, [address, !!walletClient]);
+      // Cargar conversaciones iniciales
+      const convs = await xmtpClient.conversations.list();
+      setConversations(convs);
+    } catch (error) {
+      console.error("Error al crear cliente XMTP:", error);
+      // Permitir nuevo intento si el usuario cancela la firma u ocurre otro error
+    } finally {
+      // Liberar el semáforo en cualquier caso
+      isInitializing.current = false;
+    }
+  };
 
   // -------------------------------------------------------------------------
-  // Refresco periódico de conversaciones (opcional)
+  // Refresco periódico de conversaciones (solo cuando el cliente existe)
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (!client) return;
@@ -81,5 +76,5 @@ export function useXmtp() {
     return () => clearInterval(interval);
   }, [client]);
 
-  return { client, conversations };
+  return { client, conversations, initializeXmtp };
 }

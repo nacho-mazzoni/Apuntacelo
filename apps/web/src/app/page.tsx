@@ -14,6 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useXmtp } from "@/hooks/useXmtp";
 
 // -----------------------------------------------------------------------------
 // Mock de datos de bounty (para demostrar UI). En producción se leerá del contrato.
@@ -47,6 +48,9 @@ export default function Home() {
     reward: "",
   });
 
+  // Hook XMTP con lazy loading
+  const { client, initializeXmtp } = useXmtp();
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -61,6 +65,21 @@ export default function Home() {
     setShowForm(false);
   };
 
+  // Acción que se dispara al hacer clic en "Pedir Apunte"
+  const onRequestNotes = async () => {
+    try {
+      // Si el cliente aún no está inicializado, lo lazily cargamos
+      if (!client) {
+        await initializeXmtp();
+      }
+      // En este punto `client` ya está disponible; aquí podrías
+      // abrir un modal, fetch de notas, etc.
+      console.log("Cliente XMTP listo:", client);
+    } catch (err) {
+      console.error("No se pudo inicializar XMTP:", err);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* ---------- Header (sticky) ---------- */}
@@ -73,7 +92,12 @@ export default function Home() {
           </div>
 
           {/* Right side: botón principal "Pedir Apunte" */}
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={onRequestNotes}
+          >
             <Upload className="h-4 w-4" />
             <span className="hidden sm:inline">Pedir Apunte</span>
           </Button>
