@@ -1,0 +1,99 @@
+
+> web@0.1.0 build /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web
+> next build
+
+  ▲ Next.js 14.2.35
+
+   Creating an optimized production build ...
+ ⚠ Compiled with warnings
+
+../../node_modules/.pnpm/@metamask+sdk@0.33.1/node_modules/@metamask/sdk/dist/browser/es/metamask-sdk.js
+Module not found: Can't resolve '@react-native-async-storage/async-storage' in '/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/@metamask+sdk@0.33.1/node_modules/@metamask/sdk/dist/browser/es'
+
+Import trace for requested module:
+../../node_modules/.pnpm/@metamask+sdk@0.33.1/node_modules/@metamask/sdk/dist/browser/es/metamask-sdk.js
+../../node_modules/.pnpm/@wagmi+connectors@6.2.0_@tanstack+react-query@5.100.6_@types+react@18.3.28_@wagmi+core@2.22.1_b4jnvovqbpubtpamrsq6oihzt4/node_modules/@wagmi/connectors/dist/esm/metaMask.js
+../../node_modules/.pnpm/@wagmi+connectors@6.2.0_@tanstack+react-query@5.100.6_@types+react@18.3.28_@wagmi+core@2.22.1_b4jnvovqbpubtpamrsq6oihzt4/node_modules/@wagmi/connectors/dist/esm/exports/index.js
+../../node_modules/.pnpm/wagmi@2.19.5_@tanstack+react-query@5.100.6_@types+react@18.3.28_react@18.3.1_typescript@5.9.3_viem@2.48.4/node_modules/wagmi/dist/esm/exports/connectors.js
+../../node_modules/.pnpm/@rainbow-me+rainbowkit@2.2.10_@tanstack+react-query@5.100.6_@types+react@18.3.28_react-dom@18_bxmex5pebde2l66gfj77y7wwkq/node_modules/@rainbow-me/rainbowkit/dist/index.js
+./src/components/wallet-provider.tsx
+
+../../node_modules/.pnpm/ox@0.14.20_typescript@5.9.3/node_modules/ox/_esm/tempo/internal/virtualMasterPool.js
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+../../node_modules/.pnpm/ox@0.14.20_typescript@5.9.3/node_modules/ox/_esm/tempo/internal/virtualMasterPool.js
+../../node_modules/.pnpm/ox@0.14.20_typescript@5.9.3/node_modules/ox/_esm/tempo/VirtualMaster.js
+../../node_modules/.pnpm/ox@0.14.20_typescript@5.9.3/node_modules/ox/_esm/tempo/index.js
+../../node_modules/.pnpm/viem@2.48.4_typescript@5.9.3/node_modules/viem/_esm/tempo/chainConfig.js
+../../node_modules/.pnpm/viem@2.48.4_typescript@5.9.3/node_modules/viem/_esm/chains/definitions/tempo.js
+../../node_modules/.pnpm/viem@2.48.4_typescript@5.9.3/node_modules/viem/_esm/chains/index.js
+../../node_modules/.pnpm/wagmi@2.19.5_@tanstack+react-query@5.100.6_@types+react@18.3.28_react@18.3.1_typescript@5.9.3_viem@2.48.4/node_modules/wagmi/dist/esm/exports/chains.js
+./src/components/wallet-provider.tsx
+
+../../node_modules/.pnpm/@metamask+sdk@0.33.1/node_modules/@metamask/sdk/dist/browser/es/metamask-sdk.js
+Module not found: Can't resolve '@react-native-async-storage/async-storage' in '/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/@metamask+sdk@0.33.1/node_modules/@metamask/sdk/dist/browser/es'
+
+Import trace for requested module:
+../../node_modules/.pnpm/@metamask+sdk@0.33.1/node_modules/@metamask/sdk/dist/browser/es/metamask-sdk.js
+../../node_modules/.pnpm/@wagmi+connectors@6.2.0_@tanstack+react-query@5.100.6_@types+react@18.3.28_@wagmi+core@2.22.1_b4jnvovqbpubtpamrsq6oihzt4/node_modules/@wagmi/connectors/dist/esm/metaMask.js
+../../node_modules/.pnpm/@wagmi+connectors@6.2.0_@tanstack+react-query@5.100.6_@types+react@18.3.28_@wagmi+core@2.22.1_b4jnvovqbpubtpamrsq6oihzt4/node_modules/@wagmi/connectors/dist/esm/exports/index.js
+../../node_modules/.pnpm/wagmi@2.19.5_@tanstack+react-query@5.100.6_@types+react@18.3.28_react@18.3.1_typescript@5.9.3_viem@2.48.4/node_modules/wagmi/dist/esm/exports/connectors.js
+../../node_modules/.pnpm/@rainbow-me+rainbowkit@2.2.10_@tanstack+react-query@5.100.6_@types+react@18.3.28_react-dom@18_bxmex5pebde2l66gfj77y7wwkq/node_modules/@rainbow-me/rainbowkit/dist/index.js
+./src/components/wallet-provider.tsx
+
+../../node_modules/.pnpm/ox@0.14.20_typescript@5.9.3/node_modules/ox/_esm/tempo/internal/virtualMasterPool.js
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+../../node_modules/.pnpm/ox@0.14.20_typescript@5.9.3/node_modules/ox/_esm/tempo/internal/virtualMasterPool.js
+../../node_modules/.pnpm/ox@0.14.20_typescript@5.9.3/node_modules/ox/_esm/tempo/VirtualMaster.js
+../../node_modules/.pnpm/ox@0.14.20_typescript@5.9.3/node_modules/ox/_esm/tempo/index.js
+../../node_modules/.pnpm/viem@2.48.4_typescript@5.9.3/node_modules/viem/_esm/tempo/chainConfig.js
+../../node_modules/.pnpm/viem@2.48.4_typescript@5.9.3/node_modules/viem/_esm/chains/definitions/tempo.js
+../../node_modules/.pnpm/viem@2.48.4_typescript@5.9.3/node_modules/viem/_esm/chains/index.js
+../../node_modules/.pnpm/wagmi@2.19.5_@tanstack+react-query@5.100.6_@types+react@18.3.28_react@18.3.1_typescript@5.9.3_viem@2.48.4/node_modules/wagmi/dist/esm/exports/chains.js
+./src/components/wallet-provider.tsx
+
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/4) ...
+   Generating static pages (1/4) 
+   Generating static pages (2/4) 
+   Generating static pages (3/4) 
+Error: ENOENT: no such file or directory, open '/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/user_preferences_bindings_wasm_bg.wasm'
+    at Object.openSync (node:fs:561:18)
+    at Object.readFileSync (node:fs:445:35)
+    at 46279 (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/page.js:22:45297)
+    at t (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/webpack-runtime.js:1:143)
+    at 7956 (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/page.js:2:5408)
+    at Object.t [as require] (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/webpack-runtime.js:1:143)
+    at require (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:17:18811)
+    at s (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:88330)
+    at /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:98875
+    at /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:98962 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/user_preferences_bindings_wasm_bg.wasm',
+  digest: '3317561733'
+}
+
+Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
+
+Error: ENOENT: no such file or directory, open '/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/user_preferences_bindings_wasm_bg.wasm'
+    at Object.openSync (node:fs:561:18)
+    at Object.readFileSync (node:fs:445:35)
+    at 46279 (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/page.js:22:45297)
+    at t (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/webpack-runtime.js:1:143)
+    at 7956 (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/page.js:2:5408)
+    at Object.t [as require] (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/webpack-runtime.js:1:143)
+    at require (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:17:18811)
+    at s (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:88330)
+    at /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:98875
+    at /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:98962
+ ✓ Generating static pages (4/4)
+
+> Export encountered errors on following paths:
+	/page: /
+ ELIFECYCLE  Command failed with exit code 1.

@@ -27,7 +27,10 @@ const wagmiConfig = createConfig({
   connectors,
   transports: {
     [celo.id]: http(),
-    [celoSepolia.id]: http(),
+    [celoSepolia.id]: http(
+      process.env.NEXT_PUBLIC_CELO_SEPOLIA_RPC ||
+        "https://forno.celo-sepolia.celo-testnet.org/"
+    ),
   },
   ssr: true,
 });

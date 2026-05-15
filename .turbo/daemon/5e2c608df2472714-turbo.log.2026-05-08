@@ -1,0 +1,26 @@
+2026-05-08T02:20:54.416141Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web/src/app/page.tsx"), AnchoredSystemPathBuf("apps/contracts/contracts/NotesMarketplace.sol")}
+2026-05-08T02:20:54.416159Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("web"), path: AnchoredSystemPathBuf("apps/web") }, WorkspacePackage { name: Other("hardhat"), path: AnchoredSystemPathBuf("apps/contracts") }}))
+2026-05-08T02:36:39.516127Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/contracts/contracts/NotesMarketplace.sol")}
+2026-05-08T02:36:39.516152Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("hardhat"), path: AnchoredSystemPathBuf("apps/contracts") }}))
+2026-05-08T02:37:59.715989Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web/app/page.tsx"), AnchoredSystemPathBuf("apps/web/app"), AnchoredSystemPathBuf("apps/contracts/contracts/NotesMarketplace.sol")}
+2026-05-08T02:37:59.716017Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("hardhat"), path: AnchoredSystemPathBuf("apps/contracts") }, WorkspacePackage { name: Other("web"), path: AnchoredSystemPathBuf("apps/web") }}))
+2026-05-08T02:37:59.731543Z  WARN turborepo_lib::package_changes_watcher: hashes are the same, no need to rerun
+2026-05-08T02:44:27.716053Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web/app/page.tsx")}
+2026-05-08T02:44:27.716069Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("web"), path: AnchoredSystemPathBuf("apps/web") }}))
+2026-05-08T02:47:43.315593Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web/app/page.tsx")}
+2026-05-08T02:47:43.315612Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("web"), path: AnchoredSystemPathBuf("apps/web") }}))
+2026-05-08T02:53:34.216032Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web/app/layout.tsx")}
+2026-05-08T02:53:34.216048Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("web"), path: AnchoredSystemPathBuf("apps/web") }}))
+2026-05-08T02:54:55.215834Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web/hooks/useXmtp.ts"), AnchoredSystemPathBuf("apps/web/hooks"), AnchoredSystemPathBuf("apps/web/app/page.tsx")}
+2026-05-08T02:54:55.215873Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("web"), path: AnchoredSystemPathBuf("apps/web") }}))
+2026-05-08T03:15:42.515285Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web/app/page.tsx")}
+2026-05-08T03:15:42.515301Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("web"), path: AnchoredSystemPathBuf("apps/web") }}))
+2026-05-08T03:17:03.918241Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web/app/page.tsx"), AnchoredSystemPathBuf("apps/web/hooks/useXmtp.ts")}
+2026-05-08T03:17:03.918264Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("web"), path: AnchoredSystemPathBuf("apps/web") }}))
+2026-05-08T03:38:59.215772Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web/src/app/layout.tsx")}
+2026-05-08T03:38:59.215790Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("web"), path: AnchoredSystemPathBuf("apps/web") }}))
+2026-05-08T03:45:13.816742Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/web/app/layout.tsx"), AnchoredSystemPathBuf("apps/web/app/page.tsx"), AnchoredSystemPathBuf("apps/web/hooks/useXmtp.ts")}
+2026-05-08T03:45:13.816770Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("web"), path: AnchoredSystemPathBuf("apps/web") }}))
+2026-05-08T04:11:14.716368Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("_tmp_53913_34f3b8276390469a0a74d378a1c7255d")}
+2026-05-08T04:11:14.716383Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Root, path: AnchoredSystemPathBuf("") }}))
+2026-05-08T04:11:21.780486Z  WARN turborepo_filewatch: encountered error watching filesystem enumerating recursive watch: IO error for operation on /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/long@5.3.2/node_modules/long_tmp_53913: No such file or directory (os error 2)

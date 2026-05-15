@@ -184,4 +184,45 @@ contract BountyBasedNotes {
     {
         return offersByRequest[_requestId];
     }
+
+    /**
+     * @dev Obtiene la cantidad total de solicitudes creadas.
+     * @return Cantidad de solicitudes.
+     */
+    function getRequestCount() external view returns (uint256) {
+        return _nextRequestId - 1;
+    }
+
+    /**
+     * @dev Obtiene una solicitud específica por su ID.
+     * @param _requestId Id de la solicitud.
+     * @return id El ID de la solicitud.
+     * @return requester La dirección del solicitante.
+     * @return title El título de la solicitud.
+     * @return description La descripción de la solicitud.
+     * @return reward La recompensa en wei.
+     * @return status El estado de la solicitud.
+     */
+    function getRequest(uint256 _requestId)
+        external
+        view
+        returns (
+            uint256 id,
+            address payable requester,
+            string memory title,
+            string memory description,
+            uint256 reward,
+            Status status
+        )
+    {
+        Request memory req = requests[_requestId];
+        return (
+            req.id,
+            req.requester,
+            req.title,
+            req.description,
+            req.reward,
+            req.status
+        );
+    }
 }
