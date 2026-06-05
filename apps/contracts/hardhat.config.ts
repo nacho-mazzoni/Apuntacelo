@@ -1,5 +1,6 @@
 import type { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox-viem";
+import "dotenv/config";
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -31,7 +32,6 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       celo: process.env.ETHERSCAN_API_KEY || "",
-      // CORRECCIÓN: También aquí deben ir comillas
       "celo-sepolia": process.env.ETHERSCAN_API_KEY || "",
     },
     customChains: [
@@ -39,7 +39,7 @@ const config: HardhatUserConfig = {
         network: "celo",
         chainId: 42220,
         urls: {
-          apiURL: "https://api.etherscan.io/v2/api",
+          apiURL: "https://api.etherscan.io/v2/api?chainid=42220",
           browserURL: "https://celoscan.io",
         },
       },
@@ -47,11 +47,14 @@ const config: HardhatUserConfig = {
         network: "celo-sepolia",
         chainId: 11142220,
         urls: {
-          apiURL: "https://api.etherscan.io/v2/api",
+          apiURL: "https://api.etherscan.io/v2/api?chainid=11142220",
           browserURL: "https://sepolia.celoscan.io/",
         },
       },
     ],
+  },
+  sourcify: {
+    enabled: true,
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,

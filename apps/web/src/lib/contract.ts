@@ -7,10 +7,12 @@ export const NOTES_MARKETPLACE_ABI = [
     inputs: [
       { internalType: "string", name: "_title", type: "string" },
       { internalType: "string", name: "_description", type: "string" },
+      { internalType: "address", name: "_token", type: "address" },
+      { internalType: "uint256", name: "_amount", type: "uint256" },
     ],
     name: "createRequest",
     outputs: [],
-    stateMutability: "payable",
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
@@ -39,10 +41,11 @@ export const NOTES_MARKETPLACE_ABI = [
     name: "getRequest",
     outputs: [
       { internalType: "uint256", name: "id", type: "uint256" },
-      { internalType: "address payable", name: "requester", type: "address" },
+      { internalType: "address", name: "requester", type: "address" },
       { internalType: "string", name: "title", type: "string" },
       { internalType: "string", name: "description", type: "string" },
       { internalType: "uint256", name: "reward", type: "uint256" },
+      { internalType: "address", name: "token", type: "address" },
       { internalType: "uint8", name: "status", type: "uint8" },
     ],
     stateMutability: "view",
@@ -61,7 +64,7 @@ export const NOTES_MARKETPLACE_ABI = [
     outputs: [
       {
         components: [
-          { internalType: "address payable", name: "seller", type: "address" },
+          { internalType: "address", name: "seller", type: "address" },
           { internalType: "string", name: "link", type: "string" },
         ],
         internalType: "struct BountyBasedNotes.Offer[]",
@@ -93,6 +96,7 @@ export const NOTES_MARKETPLACE_ABI = [
       { indexed: true, internalType: "address", name: "requester", type: "address" },
       { indexed: false, internalType: "string", name: "title", type: "string" },
       { indexed: false, internalType: "uint256", name: "reward", type: "uint256" },
+      { indexed: true, internalType: "address", name: "token", type: "address" },
     ],
     name: "RequestCreated",
     type: "event",
@@ -125,6 +129,7 @@ export interface BountyRequest {
   title: string;
   description: string;
   reward: bigint;
+  token: `0x${string}`;
   status: number;
 }
 

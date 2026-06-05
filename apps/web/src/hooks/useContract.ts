@@ -1,7 +1,9 @@
 import { useReadContract, useWriteContract, usePublicClient } from "wagmi";
-import { parseEther } from "viem";
+import { parseUnits, erc20Abi } from "viem";
 import { CONTRACT_ADDRESS, NOTES_MARKETPLACE_ABI } from "@/lib/contract";
 import type { BountyRequest, Offer } from "@/lib/contract";
+
+export const ERC20_ABI = erc20Abi;
 
 export function useContract() {
   const { data: requestCount } = useReadContract({
@@ -10,28 +12,20 @@ export function useContract() {
     functionName: "getRequestCount",
   });
 
-  const { data: reputation } = useReadContract({
-    address: CONTRACT_ADDRESS,
-    abi: NOTES_MARKETPLACE_ABI,
-    functionName: "reputation",
-    args: [] as any,
-  });
-
   const { writeContractAsync, isPending: isWriting } = useWriteContract();
   const publicClient = usePublicClient();
 
   const createRequest = async (
     title: string,
     description: string,
-    rewardCELO: string
+    tokenAddress: `0x${string}`,
+    amount: bigint
   ) => {
-    const rewardWei = parseEther(rewardCELO);
     return writeContractAsync({
       address: CONTRACT_ADDRESS,
       abi: NOTES_MARKETPLACE_ABI,
       functionName: "createRequest",
-      args: [title, description],
-      value: rewardWei,
+      args: [title, description, tokenAddress, amount],
     });
   };
 
@@ -57,6 +51,18 @@ export function useContract() {
     });
   };
 
+  const approveToken = async (
+    tokenAddress: `0x${string}`,
+    amount: bigint
+  ) => {
+    return writeContractAsync({
+      address: tokenAddress,
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [CONTRACT_ADDRESS, amount],
+    });
+  };
+
   const getRequest = async (requestId: bigint): Promise<BountyRequest> => {
     const result = await publicClient!.readContract({
       address: CONTRACT_ADDRESS,
@@ -64,15 +70,16 @@ export function useContract() {
       functionName: "getRequest",
       args: [requestId],
     });
-    const [id, requester, title, description, reward, status] = result as [
+    const [id, requester, title, description, reward, token, status] = result as [
       bigint,
       `0x${string}`,
       string,
       string,
       bigint,
+      `0x${string}`,
       number
     ];
-    return { id, requester, title, description, reward, status };
+    return { id, requester, title, description, reward, token, status };
   };
 
   const getRequests = async (): Promise<BountyRequest[]> => {
@@ -106,6 +113,7 @@ export function useContract() {
     createRequest,
     offerNote,
     acceptOffer,
+    approveToken,
     getRequest,
     getRequests,
     getOffers,

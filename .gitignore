@@ -18,11 +18,14 @@ build/
 # ----------------------------------------------------------------------
 # Archivos de entorno y variables sensibles
 # ----------------------------------------------------------------------
-# Ignorar cualquier archivo .env (incluye .env.local, .env.production, .env.test, etc.)
+# Ignorar archivos .env con valores reales (incluye .env.local, .env.production, .env.test, etc.)
 .env
-.env*
-# Mantener el ejemplo de .env en el repositorio
+.env.local
+.env.production
+.env.test
+# Mantener los templates y ejemplos en el repositorio
 !.env.example
+!.env.template
 
 # ----------------------------------------------------------------------
 # Claves privadas, certificados y archivos secretos

@@ -3,6 +3,7 @@
 > next build
 
   ▲ Next.js 14.2.35
+  - Environments: .env.local
 
    Creating an optimized production build ...
  ⚠ Compiled with warnings
@@ -50,7 +51,7 @@ Import trace for requested module:
 ../../node_modules/.pnpm/ox@0.14.20_typescript@5.9.3/node_modules/ox/_esm/tempo/VirtualMaster.js
 ../../node_modules/.pnpm/ox@0.14.20_typescript@5.9.3/node_modules/ox/_esm/tempo/index.js
 ../../node_modules/.pnpm/viem@2.48.4_typescript@5.9.3/node_modules/viem/_esm/tempo/chainConfig.js
-../../node_modules/.pnpm/viem@2.48.4_typescript@5.9.3/node_modules/viem/_esm/chains/definitions/tempo.js
+../../node_modules/.pnpm/viem@2.48.4_typescript@5.9.3/node_modules/viem/_esm/chains/definitions/tempoDevnet.js
 ../../node_modules/.pnpm/viem@2.48.4_typescript@5.9.3/node_modules/viem/_esm/chains/index.js
 ../../node_modules/.pnpm/wagmi@2.19.5_@tanstack+react-query@5.100.6_@types+react@18.3.28_react@18.3.1_typescript@5.9.3_viem@2.48.4/node_modules/wagmi/dist/esm/exports/chains.js
 ./src/components/wallet-provider.tsx
@@ -61,39 +62,18 @@ Import trace for requested module:
    Generating static pages (1/4) 
    Generating static pages (2/4) 
    Generating static pages (3/4) 
-Error: ENOENT: no such file or directory, open '/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/user_preferences_bindings_wasm_bg.wasm'
-    at Object.openSync (node:fs:561:18)
-    at Object.readFileSync (node:fs:445:35)
-    at 46279 (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/page.js:22:45297)
-    at t (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/webpack-runtime.js:1:143)
-    at 7956 (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/page.js:2:5408)
-    at Object.t [as require] (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/webpack-runtime.js:1:143)
-    at require (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:17:18811)
-    at s (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:88330)
-    at /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:98875
-    at /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:98962 {
-  errno: -2,
-  code: 'ENOENT',
-  syscall: 'open',
-  path: '/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/user_preferences_bindings_wasm_bg.wasm',
-  digest: '3317561733'
-}
-
-Error occurred prerendering page "/". Read more: https://nextjs.org/docs/messages/prerender-error
-
-Error: ENOENT: no such file or directory, open '/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/user_preferences_bindings_wasm_bg.wasm'
-    at Object.openSync (node:fs:561:18)
-    at Object.readFileSync (node:fs:445:35)
-    at 46279 (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/page.js:22:45297)
-    at t (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/webpack-runtime.js:1:143)
-    at 7956 (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/app/page.js:2:5408)
-    at Object.t [as require] (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web/.next/server/webpack-runtime.js:1:143)
-    at require (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:17:18811)
-    at s (/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:88330)
-    at /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:98875
-    at /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/next@14.2.35_react-dom@18.3.1_react@18.3.1/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:98962
  ✓ Generating static pages (4/4)
+   Finalizing page optimization ...
+   Collecting build traces ...
 
-> Export encountered errors on following paths:
-	/page: /
- ELIFECYCLE  Command failed with exit code 1.
+Route (app)                              Size     First Load JS
+┌ ○ /                                    12.6 kB         307 kB
+└ ○ /_not-found                          879 B            90 kB
++ First Load JS shared by all            89.1 kB
+  ├ chunks/809-76e3f79202715f5b.js       31.9 kB
+  ├ chunks/d003c1c0-4d619f687cecb69e.js  53.6 kB
+  └ other shared chunks (total)          3.54 kB
+
+
+○  (Static)  prerendered as static content
+

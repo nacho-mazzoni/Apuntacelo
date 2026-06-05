@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, ExternalLink } from "lucide-react";
+import { Menu, ExternalLink, FileText, User, BookOpen } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ConnectButton } from "@/components/connect-button";
+import { UserBalance } from "@/components/user-balance";
 
 const navLinks = [
-  { name: "Home", href: "/" },
-  { name: "Docs", href: "https://docs.celo.org", external: true },
+  { name: "Muro", href: "/", icon: FileText },
+  { name: "Docs", href: "https://docs.celo.org", external: true, icon: BookOpen },
 ];
 
 export function Navbar() {
@@ -19,8 +19,8 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4">
-        <div className="flex items-center gap-2">
+      <div className="container flex h-16 max-w-7xl items-center justify-between px-4">
+        <div className="flex items-center gap-6">
           {/* Mobile menu button */}
           <Sheet>
             <SheetTrigger asChild>
@@ -50,7 +50,7 @@ export function Navbar() {
                     {link.external && <ExternalLink className="h-4 w-4" />}
                   </Link>
                 ))}
-                <div className="mt-6 pt-6 border-t">
+                <div className="mt-6 pt-6 border-t space-y-3">
                   <Button asChild className="w-full">
                     <ConnectButton />
                   </Button>
@@ -62,37 +62,45 @@ export function Navbar() {
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
-            <span className="hidden font-bold text-xl sm:inline-block">
+            <span className="font-bold text-xl">
               Apuntacelo
             </span>
           </Link>
+
+          {/* Desktop navigation */}
+          <nav className="hidden md:flex items-center gap-1">
+            {navLinks.map((link) => {
+              const Icon = link.icon;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  target={link.external ? "_blank" : undefined}
+                  rel={link.external ? "noopener noreferrer" : undefined}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-colors hover:text-primary hover:bg-accent ${
+                    pathname === link.href
+                      ? "text-foreground bg-accent"
+                      : "text-foreground/70"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {link.name}
+                  {link.external && <ExternalLink className="h-3 w-3 ml-0.5" />}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Desktop navigation */}
-        <nav className="hidden md:flex items-center gap-8">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              target={link.external ? "_blank" : undefined}
-              rel={link.external ? "noopener noreferrer" : undefined}
-              className={`flex items-center gap-1.5 text-sm font-medium transition-colors hover:text-primary ${
-                pathname === link.href
-                  ? "text-foreground"
-                  : "text-foreground/70"
-              }`}
-            >
-              {link.name}
-              {link.external && <ExternalLink className="h-4 w-4" />}
-            </Link>
-          ))}
-
-          <div className="flex items-center gap-3">
+        {/* Right side */}
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3">
+            <UserBalance />
             <ConnectButton />
           </div>
-        </nav>
+        </div>
       </div>
     </header>
   );

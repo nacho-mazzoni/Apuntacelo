@@ -2,4 +2,4 @@
 > hardhat@1.0.0 build /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/contracts
 > hardhat compile
 
-Compiled 1 Solidity file successfully (evm target: paris).
+Nothing to compile
