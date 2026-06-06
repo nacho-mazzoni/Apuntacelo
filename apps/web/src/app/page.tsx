@@ -28,6 +28,8 @@ import { useAccount, useChainId } from "wagmi";
 import { OfferSheet } from "@/components/offer-sheet";
 import { PendingOffers } from "@/components/pending-offers";
 import { ConnectGate } from "@/components/connect-gate";
+import { CreateRequestForm } from "@/components/create-request-form";
+import { useBalance } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { getTokensForChain, getTokenByAddress } from "@/lib/tokens";
 import type { TokenInfo } from "@/lib/tokens";
@@ -41,6 +43,8 @@ export default function Home() {
   const isMobile = useIsMobile();
 
   const [showForm, setShowForm] = useState(false);
+  const { data: celoBalance } = useBalance({ address, chainId, query: { enabled: showForm } });
+  const insufficientGas = !!address && celoBalance !== undefined && celoBalance.value === 0n;
   const [requests, setRequests] = useState<BountyRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedToken, setSelectedToken] = useState<TokenInfo | null>(null);
@@ -205,71 +209,6 @@ export default function Home() {
   const truncateAddress = (addr: `0x${string}`) =>
     `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
-  const CreateRequestForm = () => (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex flex-col space-y-1">
-        <label className="text-sm font-medium">Título</label>
-        <input
-          type="text"
-          name="title"
-          required
-          value={formData.title}
-          onChange={handleInputChange}
-          className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-      </div>
-      <div className="flex flex-col space-y-1">
-        <label className="text-sm font-medium">Descripción</label>
-        <textarea
-          name="description"
-          required
-          rows={3}
-          value={formData.description}
-          onChange={handleInputChange}
-          className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-      </div>
-      <div className="flex flex-col space-y-1">
-        <label className="text-sm font-medium">Moneda</label>
-        <select
-          name="token"
-          value={selectedToken?.address || ""}
-          onChange={(e) => {
-            const token = tokens.find(
-              (t) => t.address === e.target.value
-            );
-            setSelectedToken(token || null);
-          }}
-          className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          {tokens.map((t) => (
-            <option key={t.address} value={t.address}>
-              {t.symbol} - {t.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-col space-y-1">
-        <label className="text-sm font-medium">
-          Recompensa ({selectedToken?.symbol || "USD"})
-        </label>
-        <input
-          type="number"
-          name="reward"
-          required
-          min="0"
-          step="0.01"
-          value={formData.reward}
-          onChange={handleInputChange}
-          className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-      </div>
-      <Button type="submit" className="w-full" disabled={isWriting}>
-        {isWriting ? "Enviando..." : "Crear Pedido"}
-      </Button>
-    </form>
-  );
-
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {isConnected ? (
@@ -298,7 +237,16 @@ export default function Home() {
                     <SheetHeader className="mb-4">
                       <SheetTitle>Nuevo Pedido de Apunte</SheetTitle>
                     </SheetHeader>
-                    <CreateRequestForm />
+                    <CreateRequestForm
+              formData={formData}
+              selectedToken={selectedToken}
+              tokens={tokens}
+              isWriting={isWriting}
+              insufficientGas={insufficientGas}
+              onSubmit={handleSubmit}
+              onInputChange={handleInputChange}
+              onTokenChange={setSelectedToken}
+            />
                   </SheetContent>
                 </Sheet>
               ) : (
@@ -313,7 +261,16 @@ export default function Home() {
                     <DialogHeader>
                       <DialogTitle>Nuevo Pedido de Apunte</DialogTitle>
                     </DialogHeader>
-                    <CreateRequestForm />
+                    <CreateRequestForm
+              formData={formData}
+              selectedToken={selectedToken}
+              tokens={tokens}
+              isWriting={isWriting}
+              insufficientGas={insufficientGas}
+              onSubmit={handleSubmit}
+              onInputChange={handleInputChange}
+              onTokenChange={setSelectedToken}
+            />
                   </DialogContent>
                 </Dialog>
               )}
