@@ -27,6 +27,7 @@ import { useContract } from "@/hooks/useContract";
 import { useAccount, useChainId } from "wagmi";
 import { OfferSheet } from "@/components/offer-sheet";
 import { PendingOffers } from "@/components/pending-offers";
+import { ConnectGate } from "@/components/connect-gate";
 import { parseUnits, formatUnits } from "viem";
 import { getTokensForChain, getTokenByAddress } from "@/lib/tokens";
 import type { TokenInfo } from "@/lib/tokens";
@@ -35,7 +36,7 @@ import type { BountyRequest, Offer } from "@/lib/contract";
 export default function Home() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { requestCount, createRequest, getRequests, getOffers, approveToken, offerNote, isWriting } = useContract();
+  const { requestCount, createRequest, getRequests, getOffers, approveToken, offerNote, acceptOffer, isWriting } = useContract();
   const { client, initializeXmtp } = useXmtp();
   const isMobile = useIsMobile();
 
@@ -109,6 +110,8 @@ export default function Home() {
   const [offeringBounty, setOfferingBounty] = useState<BountyRequest | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<bigint | null>(null);
   const [selectedOffers, setSelectedOffers] = useState<Offer[]>([]);
+  const [encryptionKeys, setEncryptionKeys] = useState<Record<string, string>>({});
+  const [fileInfo, setFileInfo] = useState<Record<string, { fileName: string; mimeType: string }>>({});
 
   const onRequestNotes = async () => {
     try {
@@ -140,8 +143,56 @@ export default function Home() {
       const data = await getOffers(requestId);
       setSelectedOffers(data);
       setSelectedRequest(requestId);
+      loadOfferKeys(Number(requestId), data);
     } catch (err) {
       console.error("Error loading offers:", err);
+    }
+  };
+
+  const loadOfferKeys = useCallback(async (bountyId: number, offers: Offer[]) => {
+    if (!client || !offers.length) return;
+    const keys: Record<string, string> = {};
+    const files: Record<string, { fileName: string; mimeType: string }> = {};
+    try {
+      const convs = await client.conversations.list();
+      for (const conv of convs) {
+        const peerAddress = conv.peerAddress.toLowerCase();
+        const offerIndex = offers.findIndex(
+          (o) => o.seller.toLowerCase() === peerAddress
+        );
+        if (offerIndex === -1) continue;
+        const messages = await conv.messages();
+        const prefix = `OFFER_KEY:${bountyId}:`;
+        for (const msg of messages) {
+          const content = msg.content;
+          if (typeof content !== "string" || !content.startsWith(prefix)) continue;
+          const rest = content.slice(prefix.length);
+          const keyEnd = rest.indexOf(":");
+          if (keyEnd === -1) continue;
+          const keyBase64 = rest.slice(0, keyEnd);
+          const rest2 = rest.slice(keyEnd + 1);
+          const lastColon = rest2.lastIndexOf(":");
+          if (lastColon === -1) continue;
+          const fileName = rest2.slice(0, lastColon);
+          const mimeType = rest2.slice(lastColon + 1);
+          keys[offerIndex.toString()] = keyBase64;
+          files[offerIndex.toString()] = { fileName, mimeType };
+        }
+      }
+    } catch (err) {
+      console.error("Error loading offer keys from XMTP:", err);
+    }
+    setEncryptionKeys(keys);
+    setFileInfo(files);
+  }, [client]);
+
+  const handleAcceptOffer = async (offerIndex: number, rating: number) => {
+    if (selectedRequest === null) return;
+    try {
+      await acceptOffer(selectedRequest, BigInt(offerIndex), rating);
+      loadRequests();
+    } catch (err) {
+      console.error("Error accepting offer:", err);
     }
   };
 
@@ -221,6 +272,8 @@ export default function Home() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
+      {isConnected ? (
+        <>
       <main className="flex-1">
         <section className="py-8 md:py-12 text-center border-b bg-primary/5">
           <div className="container px-4 max-w-7xl">
@@ -369,6 +422,8 @@ export default function Home() {
           if (!open) {
             setSelectedRequest(null);
             setSelectedOffers([]);
+            setEncryptionKeys({});
+            setFileInfo({});
           }
         }}
       >
@@ -377,16 +432,21 @@ export default function Home() {
             <DialogTitle>Ofertas recibidas</DialogTitle>
           </DialogHeader>
           <PendingOffers
-            offers={selectedOffers.map((o, i) => ({ ...o, index: i }))}
+            offers={selectedOffers.map((o, i) => ({
+              ...o,
+              index: i,
+              fileName: fileInfo[i]?.fileName || "",
+              mimeType: fileInfo[i]?.mimeType || "",
+            }))}
             bountyId={Number(selectedRequest)}
             fileName=""
             mimeType=""
-            encryptionKeys={{}}
+            encryptionKeys={encryptionKeys}
             isOwner={
               address ===
               requests.find((r) => r.id === selectedRequest)?.requester
             }
-            onAccept={async (_offerIndex: number, _rating: number) => {}}
+            onAccept={handleAcceptOffer}
             isAccepted={false}
           />
         </DialogContent>
@@ -398,6 +458,10 @@ export default function Home() {
           {requests.length > 0 && <span>{requests.length} pedidos activos</span>}
         </div>
       </footer>
+        </>
+      ) : (
+        <ConnectGate />
+      )}
     </div>
   );
 }

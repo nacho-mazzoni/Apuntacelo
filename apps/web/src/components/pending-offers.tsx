@@ -20,6 +20,8 @@ interface PendingOffersProps {
     seller: `0x${string}`;
     link: string;
     index: number;
+    fileName?: string;
+    mimeType?: string;
   }>;
   bountyId: number;
   fileName: string;
@@ -96,8 +98,8 @@ export function PendingOffers({
                 <div className="space-y-3">
                   <OfferPreview
                     ipfsCID={offer.link}
-                    fileName={fileName}
-                    mimeType={mimeType}
+                    fileName={offer.fileName || fileName}
+                    mimeType={offer.mimeType || mimeType}
                     keyBase64={encryptionKeys[offer.index.toString()] || ""}
                     isOwner={isOwner}
                     onAccept={
@@ -199,7 +201,7 @@ export function PendingOffers({
                 {truncate(offer.seller)}
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {fileName || "Documento"}
+                {offer.fileName || fileName || "Documento"}
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2">
@@ -232,14 +234,19 @@ export function PendingOffers({
       {selectedOffer !== null && (
         <Card>
           <CardContent className="p-4">
+            {(() => {
+              const sel = offers.find(o => o.index === selectedOffer);
+              return (
             <OfferPreview
-              ipfsCID={offers.find(o => o.index === selectedOffer)?.link || ""}
-              fileName={fileName}
-              mimeType={mimeType}
+              ipfsCID={sel?.link || ""}
+              fileName={sel?.fileName || fileName}
+              mimeType={sel?.mimeType || mimeType}
               keyBase64={encryptionKeys[selectedOffer.toString()] || ""}
               isOwner={isOwner}
               isDecrypted={isAccepted}
             />
+              );
+            })()}
             {showRating && (
               <div className="mt-4 p-4 border rounded-lg space-y-3">
                 <p className="text-sm font-medium">

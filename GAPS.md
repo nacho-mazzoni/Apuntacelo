@@ -29,12 +29,12 @@
 - [ ] **Llamar `loadEncryptionKeys` al abrir PendingOffers** — para que el requester pueda descifrar las vistas previas
 - [ ] **Pasar `encryptionKeys` como prop a `<PendingOffers>`**
 
-## Fase 4: Requester — Aceptar Oferta
+## Fase 4: Requester — Aceptar Oferta ✅
 
-- [ ] **Agregar handler `handleAcceptOffer(offerIndex, rating)`** — llama a `acceptOffer(requestId, offerIndex, rating)` del hook
-- [ ] **Pasar `handleAcceptOffer` como `onAccept` a `<PendingOffers>`**
-- [ ] **Recargar pedidos después de aceptar** — llamar `loadRequests()` para que el pedido desaparezca del muro (status Closed)
-- [ ] **Parsear `fileName` y `mimeType` del mensaje XMTP** — el formato es `OFFER_KEY:{id}:{key}:{fileName}:{mimeType}`, extraer para el preview
+- [x] **Agregar handler `handleAcceptOffer(offerIndex, rating)`** — `page.tsx:188`
+- [x] **Pasar `handleAcceptOffer` como `onAccept` a `<PendingOffers>`** — `page.tsx:446`
+- [x] **Recargar pedidos después de aceptar** — `page.tsx:192`, llama `loadRequests()` post-transaction
+- [x] **Parsear `fileName` y `mimeType` del mensaje XMTP** — `page.tsx:151` (`loadOfferKeys`), formato `OFFER_KEY:{id}:{key}:{fileName}:{mimeType}`, extrae por offer index
 
 ## Fase 5: UI Post-Aceptación
 
