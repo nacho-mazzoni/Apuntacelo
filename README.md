@@ -12,17 +12,19 @@ Built with Next.js 14, TypeScript, Hardhat, and Turborepo.
 ```
 Apuntacelo/
 ├── apps/
-│   ├── web/             # Frontend Next.js + UI components
-│   │   ├── app/         # App Router pages
-│   │   ├── components/  # UI components (shadcn/ui)
-│   │   ├── hooks/       # Custom hooks (useXmtp, useContract)
-│   │   └── lib/         # Utils (IPFS, encryption, tokens, ABI)
-│   └── contracts/       # Smart contracts (Hardhat + Solidity)
-│       ├── contracts/   # Solidity source files
-│       ├── ignition/    # Hardhat Ignition deployment modules
-│       └── test/        # Contract tests
-├── .agents/             # opencode AI agent skills
-└── GAPS.md              # Feature checklist
+│   ├── web/                # Frontend Next.js + UI components
+│   │   └── src/
+│   │       ├── app/        # App Router pages
+│   │       ├── components/ # UI components (shadcn/ui)
+│   │       ├── hooks/      # Custom hooks (useXmtp, useContract)
+│   │       └── lib/        # Utils (IPFS, encryption, tokens, ABI)
+│   └── contracts/          # Smart contracts (Hardhat + Solidity)
+│       ├── contracts/      # Solidity source files
+│       ├── ignition/       # Hardhat Ignition deployment modules
+│       └── test/           # Contract tests
+├── .agents/                # opencode AI agent skills
+├── GAPS.md                 # Feature roadmap
+└── README.md               # Este archivo
 ```
 
 ### Smart Contracts
