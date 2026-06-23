@@ -11,20 +11,43 @@ Built with Next.js 14, TypeScript, Hardhat, and Turborepo.
 
 ```
 Apuntacelo/
+├── specs/                   # Especificaciones (SDD)
+│   ├── 00-architecture.md   # Visión general del sistema
+│   ├── 01-data-model.md     # Entidades, relaciones, tipos
+│   ├── 02-user-flows.md     # Flujos de usuario (sequence diagrams)
+│   ├── 03-smart-contract.md # Spec formal del contrato
+│   ├── 04-xmtp-protocol.md  # Formato de mensajes XMTP
+│   ├── 05-ipfs-storage.md   # Esquema de almacenamiento IPFS
+│   ├── 06-ui-components.md  # Árbol de componentes y props
+│   ├── 07-error-handling.md # Matriz de errores por capa
+│   └── 08-glossary.md       # Lenguaje ubicuo
+├── adrs/                    # Architecture Decision Records
+│   ├── 001-usar-turborepo.md
+│   ├── 002-encryption-aes-gcm.md
+│   ├── 003-xmtp-vs-push.md
+│   └── 004-single-page-vs-routes.md
+├── packages/                # Código compartido
+│   ├── shared-types/        # Tipos TypeScript compartidos
+│   └── config/              # Configuraciones (tsconfig, eslint)
 ├── apps/
-│   ├── web/                # Frontend Next.js + UI components
+│   ├── web/                 # Frontend Next.js + UI components
 │   │   └── src/
-│   │       ├── app/        # App Router pages
-│   │       ├── components/ # UI components (shadcn/ui)
-│   │       ├── hooks/      # Custom hooks (useXmtp, useContract)
-│   │       └── lib/        # Utils (IPFS, encryption, tokens, ABI)
-│   └── contracts/          # Smart contracts (Hardhat + Solidity)
-│       ├── contracts/      # Solidity source files
-│       ├── ignition/       # Hardhat Ignition deployment modules
-│       └── test/           # Contract tests
-├── .agents/                # opencode AI agent skills
-├── GAPS.md                 # Feature roadmap
-└── README.md               # Este archivo
+│   │       ├── app/         # App Router pages
+│   │       ├── components/
+│   │       │   ├── bounty/  # CreateRequestForm
+│   │       │   ├── offer/   # OfferSheet, PendingOffers, OfferPreview
+│   │       │   ├── user/    # UserBalance
+│   │       │   ├── shared/  # Navbar, ConnectButton, ConnectGate, WalletProvider
+│   │       │   └── ui/      # shadcn/ui primitives
+│   │       ├── hooks/       # Custom hooks (useXmtp, useContract)
+│   │       └── lib/         # Utils (IPFS, encryption, tokens, ABI)
+│   └── contracts/           # Smart contracts (Hardhat + Solidity)
+│       ├── contracts/       # Solidity source files
+│       ├── ignition/        # Hardhat Ignition deployment modules
+│       └── test/            # Contract tests
+├── .agents/                 # opencode AI agent skills
+├── GAPS.md                  # Feature roadmap
+└── README.md                # Este archivo
 ```
 
 ### Smart Contracts

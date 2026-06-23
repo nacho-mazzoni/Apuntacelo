@@ -6,8 +6,8 @@ import { Menu, ExternalLink, FileText, User, BookOpen } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { ConnectButton } from "@/components/connect-button";
-import { UserBalance } from "@/components/user-balance";
+import { ConnectButton } from "@/components/shared/connect-button";
+import { UserBalance } from "@/components/user/user-balance";
 
 const navLinks = [
   { name: "Muro", href: "/", icon: FileText },
