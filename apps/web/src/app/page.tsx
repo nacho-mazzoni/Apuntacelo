@@ -21,10 +21,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { Zap, Upload, FileText, Loader2, Plus } from "lucide-react";
+import { Zap, Upload, FileText, Loader2, Plus, CheckCircle2 } from "lucide-react";
 import { useXmtp } from "@/hooks/useXmtp";
 import { useContract } from "@/hooks/useContract";
-import { useAccount, useChainId } from "wagmi";
+import { useAccount, useChainId, useSwitchChain } from "wagmi";
+import { celo, celoSepolia } from "wagmi/chains";
 import { OfferSheet } from "@/components/offer/offer-sheet";
 import { PendingOffers } from "@/components/offer/pending-offers";
 import { ConnectGate } from "@/components/shared/connect-gate";
@@ -38,7 +39,7 @@ import type { BountyRequest, Offer } from "@/lib/contract";
 export default function Home() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { requestCount, createRequest, getRequests, getOffers, approveToken, offerNote, acceptOffer, isWriting } = useContract();
+  const { requestCount, refetchCount, createRequest, getRequests, getAllRequests, getOffers, approveToken, offerNote, acceptOffer, getReputation, getCompletedTasks, isWriting } = useContract();
   const { client, initializeXmtp } = useXmtp();
   const isMobile = useIsMobile();
 
@@ -56,6 +57,29 @@ export default function Home() {
 
   const tokens = getTokensForChain(chainId);
 
+  const isWrongChain = isConnected && chainId !== celo.id && chainId !== celoSepolia.id;
+
+  const [countTimedOut, setCountTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (requestCount !== undefined || !isConnected) {
+      setCountTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => setCountTimedOut(true), 15000);
+    return () => clearTimeout(timer);
+  }, [requestCount, isConnected]);
+
+  const { switchChain } = useSwitchChain();
+
+  const chainName =
+    chainId === celo.id ? "Celo Mainnet" :
+    chainId === celoSepolia.id ? "Celo Sepolia" :
+    chainId ? `Chain ID: ${chainId}` : "Desconectado";
+
+  const switchToCelo = () => switchChain({ chainId: celo.id });
+  const switchToSepolia = () => switchChain({ chainId: celoSepolia.id });
+
   useEffect(() => {
     if (tokens.length > 0 && !selectedToken) {
       setSelectedToken(tokens[0]);
@@ -65,20 +89,20 @@ export default function Home() {
   const loadRequests = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getRequests();
+      const data = await getAllRequests();
       setRequests(data);
     } catch (err) {
       console.error("Error loading requests:", err);
     } finally {
       setLoading(false);
     }
-  }, [getRequests]);
+  }, [getAllRequests]);
 
   useEffect(() => {
     if (requestCount !== undefined) {
       loadRequests();
     }
-  }, [requestCount, loadRequests]);
+  }, [requestCount, loadRequests, address]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -105,7 +129,7 @@ export default function Home() {
 
       setFormData({ title: "", description: "", reward: "" });
       setShowForm(false);
-      setTimeout(loadRequests, 2000);
+      await refetchCount();
     } catch (err) {
       console.error("Error creating request:", err);
     }
@@ -116,6 +140,10 @@ export default function Home() {
   const [selectedOffers, setSelectedOffers] = useState<Offer[]>([]);
   const [encryptionKeys, setEncryptionKeys] = useState<Record<string, string>>({});
   const [fileInfo, setFileInfo] = useState<Record<string, { fileName: string; mimeType: string }>>({});
+  const [isRequestAccepted, setIsRequestAccepted] = useState(false);
+  const [sellerReputations, setSellerReputations] = useState<
+    Record<string, { reputation: number; completedTasks: number; average: number }>
+  >({});
 
   const onRequestNotes = async () => {
     try {
@@ -148,6 +176,22 @@ export default function Home() {
       setSelectedOffers(data);
       setSelectedRequest(requestId);
       loadOfferKeys(Number(requestId), data);
+
+      const reps: Record<string, { reputation: number; completedTasks: number; average: number }> = {};
+      for (const offer of data) {
+        const [rep, tasks] = await Promise.all([
+          getReputation(offer.seller),
+          getCompletedTasks(offer.seller),
+        ]);
+        const repNum = Number(rep);
+        const tasksNum = Number(tasks);
+        reps[offer.seller.toLowerCase()] = {
+          reputation: repNum,
+          completedTasks: tasksNum,
+          average: tasksNum > 0 ? Math.round(repNum / tasksNum) : 0,
+        };
+      }
+      setSellerReputations(reps);
     } catch (err) {
       console.error("Error loading offers:", err);
     }
@@ -194,6 +238,7 @@ export default function Home() {
     if (selectedRequest === null) return;
     try {
       await acceptOffer(selectedRequest, BigInt(offerIndex), rating);
+      setIsRequestAccepted(true);
       loadRequests();
     } catch (err) {
       console.error("Error accepting offer:", err);
@@ -209,6 +254,9 @@ export default function Home() {
   const truncateAddress = (addr: `0x${string}`) =>
     `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
+  const openRequests = requests.filter(r => r.status === 0);
+  const closedRequests = requests.filter(r => r.status !== 0);
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {isConnected ? (
@@ -219,6 +267,7 @@ export default function Home() {
             <div className="inline-flex items-center gap-2 px-3 py-1 mb-4 text-xs font-medium bg-primary/10 text-primary rounded-full border border-primary/20">
               <Zap className="h-3 w-3" />
               Built on Celo
+              <span className="text-[10px] opacity-70">· {chainName}</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Apuntacelo</h1>
             <p className="text-muted-foreground mt-2 text-sm md:text-base max-w-xl mx-auto">
@@ -283,14 +332,54 @@ export default function Home() {
         </section>
 
         <section className="py-8 md:py-12">
-          <div className="container px-4 max-w-7xl">
+          {isWrongChain ? (
+            <div className="container px-4 max-w-7xl">
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="rounded-full bg-destructive/10 p-4 mb-4">
+                  <Zap className="h-8 w-8 text-destructive" />
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Red no soportada</h2>
+                <p className="text-muted-foreground mb-6 max-w-md">
+                  Apuntacelo funciona sobre Celo. Cambiá a una red compatible para empezar.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button onClick={switchToCelo} className="gap-2">
+                    <Zap className="h-4 w-4" />
+                    Celo Mainnet
+                  </Button>
+                  <Button onClick={switchToSepolia} variant="outline" className="gap-2">
+                    Celo Sepolia (testnet)
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-4">
+                  Conectado a: <span className="font-mono">{chainName}</span>
+                </p>
+              </div>
+            </div>
+          ) : countTimedOut ? (
+            <div className="container px-4 max-w-7xl">
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="rounded-full bg-destructive/10 p-4 mb-4">
+                  <Loader2 className="h-8 w-8 text-destructive" />
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Error de conexión</h2>
+                <p className="text-muted-foreground mb-6 max-w-md">
+                  No se pudieron cargar los pedidos. Revisá tu conexión a la red de Celo.
+                </p>
+                <Button onClick={() => { setCountTimedOut(false); refetchCount(); }}>
+                  Reintentar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="container px-4 max-w-7xl">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-semibold flex items-center gap-2">
                 <FileText className="h-6 w-6 text-primary" />
                 Muro de Pedidos
               </h2>
               <span className="text-sm text-muted-foreground">
-                {requests.length} pedido{requests.length !== 1 ? "s" : ""} abierto{requests.length !== 1 ? "s" : ""}
+                {openRequests.length} pedido{openRequests.length !== 1 ? "s" : ""} abierto{openRequests.length !== 1 ? "s" : ""}
               </span>
             </div>
 
@@ -298,13 +387,13 @@ export default function Home() {
               <div className="flex justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
-            ) : requests.length === 0 ? (
+            ) : openRequests.length === 0 && closedRequests.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <p>Todavía no hay pedidos. ¡Creá el primero!</p>
               </div>
-            ) : (
+            ) : openRequests.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {requests.map((req) => {
+                {openRequests.map((req) => {
                   const token = getTokenByAddress(chainId, req.token);
                   return (
                     <Card key={req.id.toString()} className="flex flex-col justify-between">
@@ -359,8 +448,62 @@ export default function Home() {
                   );
                 })}
               </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>No hay pedidos abiertos en este momento.</p>
+              </div>
+            )}
+
+            {closedRequests.length > 0 && (
+              <div className="mt-12">
+                <div className="flex items-center gap-2 mb-6">
+                  <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
+                  <h2 className="text-xl font-semibold">Completados</h2>
+                  <span className="text-sm text-muted-foreground">
+                    ({closedRequests.length} pedido{closedRequests.length !== 1 ? "s" : ""})
+                  </span>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 opacity-70">
+                  {closedRequests.map((req) => {
+                    const token = getTokenByAddress(chainId, req.token);
+                    return (
+                      <Card key={req.id.toString()} className="flex flex-col justify-between">
+                        <CardHeader className="p-4 pb-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <CardTitle className="text-base font-bold leading-tight">
+                              {req.title}
+                            </CardTitle>
+                            <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0">
+                              Cerrado
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="px-4 pb-4 flex flex-col gap-2 flex-1">
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {req.description}
+                          </p>
+                          <div className="flex items-center gap-2 mt-auto pt-2">
+                            <span className="font-mono font-bold text-muted-foreground text-sm">
+                              {formatReward(req)}
+                            </span>
+                            {token && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                {token.symbol}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground font-mono">
+                            por {truncateAddress(req.requester)}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </div>
+          )}
         </section>
       </main>
 
@@ -381,6 +524,8 @@ export default function Home() {
             setSelectedOffers([]);
             setEncryptionKeys({});
             setFileInfo({});
+            setIsRequestAccepted(false);
+            setSellerReputations({});
           }
         }}
       >
@@ -404,7 +549,8 @@ export default function Home() {
               requests.find((r) => r.id === selectedRequest)?.requester
             }
             onAccept={handleAcceptOffer}
-            isAccepted={false}
+            isAccepted={isRequestAccepted}
+            sellerReputations={sellerReputations}
           />
         </DialogContent>
       </Dialog>
@@ -412,7 +558,7 @@ export default function Home() {
       <footer className="border-t bg-background py-4 md:py-6">
         <div className="container px-4 max-w-7xl flex items-center justify-between text-xs text-muted-foreground">
           <span>Apuntacelo &mdash; Built on Celo</span>
-          {requests.length > 0 && <span>{requests.length} pedidos activos</span>}
+          {openRequests.length > 0 && <span>{openRequests.length} pedidos activos</span>}
         </div>
       </footer>
         </>

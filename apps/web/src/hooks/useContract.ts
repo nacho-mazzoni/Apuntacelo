@@ -1,4 +1,5 @@
-import { useReadContract, useWriteContract, usePublicClient } from "wagmi";
+import { useReadContract, useWriteContract, usePublicClient, useAccount } from "wagmi";
+import { celo } from "wagmi/chains";
 import { parseUnits, erc20Abi } from "viem";
 import { CONTRACT_ADDRESS, NOTES_MARKETPLACE_ABI } from "@/lib/contract";
 import type { BountyRequest, Offer } from "@/lib/contract";
@@ -6,10 +7,13 @@ import type { BountyRequest, Offer } from "@/lib/contract";
 export const ERC20_ABI = erc20Abi;
 
 export function useContract() {
-  const { data: requestCount } = useReadContract({
+  const { address } = useAccount();
+  const { data: requestCount, refetch: refetchCount } = useReadContract({
     address: CONTRACT_ADDRESS,
     abi: NOTES_MARKETPLACE_ABI,
     functionName: "getRequestCount",
+    chainId: celo.id,
+    query: { enabled: !!address },
   });
 
   const { writeContractAsync, isPending: isWriting } = useWriteContract();
@@ -108,15 +112,52 @@ export function useContract() {
     return result as Offer[];
   };
 
+  const getAllRequests = async (): Promise<BountyRequest[]> => {
+    const count = Number(requestCount || 0n);
+    const requests: BountyRequest[] = [];
+    for (let i = 1; i <= count; i++) {
+      try {
+        requests.push(await getRequest(BigInt(i)));
+      } catch {
+        break;
+      }
+    }
+    return requests;
+  };
+
+  const getReputation = async (seller: `0x${string}`): Promise<bigint> => {
+    const result = await publicClient!.readContract({
+      address: CONTRACT_ADDRESS,
+      abi: NOTES_MARKETPLACE_ABI,
+      functionName: "reputation",
+      args: [seller],
+    });
+    return result as bigint;
+  };
+
+  const getCompletedTasks = async (seller: `0x${string}`): Promise<bigint> => {
+    const result = await publicClient!.readContract({
+      address: CONTRACT_ADDRESS,
+      abi: NOTES_MARKETPLACE_ABI,
+      functionName: "completedTasks",
+      args: [seller],
+    });
+    return result as bigint;
+  };
+
   return {
     requestCount,
+    refetchCount,
     createRequest,
     offerNote,
     acceptOffer,
     approveToken,
     getRequest,
     getRequests,
+    getAllRequests,
     getOffers,
+    getReputation,
+    getCompletedTasks,
     isWriting,
   };
 }

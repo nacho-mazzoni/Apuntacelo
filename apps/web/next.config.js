@@ -9,6 +9,10 @@ const nextConfig = {
       path: false,
       crypto: false,
     };
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@react-native-async-storage/async-storage": false,
+    };
     config.module.rules.push({
       test: /\.wasm$/,
       type: "asset/resource",

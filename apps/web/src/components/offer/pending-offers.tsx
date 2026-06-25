@@ -30,6 +30,7 @@ interface PendingOffersProps {
   isOwner: boolean;
   onAccept: (offerIndex: number, rating: number) => Promise<void>;
   isAccepted: boolean;
+  sellerReputations: Record<string, { reputation: number; completedTasks: number; average: number }>;
 }
 
 export function PendingOffers({
@@ -41,6 +42,7 @@ export function PendingOffers({
   isOwner,
   onAccept,
   isAccepted,
+  sellerReputations,
 }: PendingOffersProps) {
   const isMobile = useIsMobile();
   const [selectedOffer, setSelectedOffer] = useState<number | null>(null);
@@ -81,7 +83,9 @@ export function PendingOffers({
           Ofertas recibidas ({offers.length})
         </h3>
 
-        {offers.map((offer) => (
+        {offers.map((offer) => {
+          const rep = sellerReputations[offer.seller.toLowerCase()];
+          return (
           <Card key={offer.index}>
             <CardHeader className="p-4">
               <div className="flex items-center justify-between">
@@ -92,6 +96,13 @@ export function PendingOffers({
                   {truncate(offer.seller)}
                 </span>
               </div>
+              {rep && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span>{rep.average}</span>
+                  <span className="ml-1">({rep.completedTasks} ventas)</span>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-3">
               {selectedOffer === offer.index ? (
@@ -171,7 +182,8 @@ export function PendingOffers({
               )}
             </CardContent>
           </Card>
-        ))}
+        )
+      })}
       </div>
     );
   }
@@ -188,11 +200,14 @@ export function PendingOffers({
             <TableHead className="w-24">Oferta</TableHead>
             <TableHead>Vendedor</TableHead>
             <TableHead>Archivo</TableHead>
+            <TableHead>Reputación</TableHead>
             <TableHead className="text-right">Acción</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {offers.map((offer) => (
+          {offers.map((offer) => {
+            const rep = sellerReputations[offer.seller.toLowerCase()];
+            return (
             <TableRow key={offer.index}>
               <TableCell className="font-medium">
                 #{offer.index + 1}
@@ -202,6 +217,19 @@ export function PendingOffers({
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {offer.fileName || fileName || "Documento"}
+              </TableCell>
+              <TableCell className="text-sm">
+                {rep ? (
+                  <span className="flex items-center gap-1">
+                    <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                    {rep.average}
+                    <span className="text-muted-foreground ml-1">
+                      ({rep.completedTasks})
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2">
@@ -227,7 +255,7 @@ export function PendingOffers({
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+          )})}
         </TableBody>
       </Table>
 
