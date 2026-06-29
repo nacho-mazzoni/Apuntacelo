@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,32 +22,39 @@ import {
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { Zap, Upload, FileText, Loader2, Plus, CheckCircle2 } from "lucide-react";
+import { IdentifierKind } from "@xmtp/browser-sdk";
 import { useXmtp } from "@/hooks/useXmtp";
+import { useXmtpStream } from "@/hooks/useXmtpStream";
 import { useContract } from "@/hooks/useContract";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { celo, celoSepolia } from "wagmi/chains";
+import { keccak256, toHex, parseUnits, formatUnits } from "viem";
 import { OfferSheet } from "@/components/offer/offer-sheet";
 import { PendingOffers } from "@/components/offer/pending-offers";
 import { ConnectGate } from "@/components/shared/connect-gate";
 import { CreateRequestForm } from "@/components/bounty/create-request-form";
 import { useBalance } from "wagmi";
-import { parseUnits, formatUnits } from "viem";
-import { getTokensForChain, getTokenByAddress } from "@/lib/tokens";
+import { getTokensForChain, getTokenByAddress, NATIVE_CELO } from "@/lib/tokens";
 import type { TokenInfo } from "@/lib/tokens";
 import type { BountyRequest, Offer } from "@/lib/contract";
+import { fetchAllRequestsMetadata, saveRequestMetadata, fetchOffersMetadata, saveOfferMetadata, fetchRequestMetadata } from "@/lib/api";
+import type { RequestMetadata, OfferMetadata } from "@/lib/api";
 
 export default function Home() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { requestCount, refetchCount, createRequest, getRequests, getAllRequests, getOffers, approveToken, offerNote, acceptOffer, getReputation, getCompletedTasks, isWriting } = useContract();
+  const { requestCount, refetchCount, createRequest, getAllRequests, getOffers, approveToken, offerNote, acceptOffer, getReputation, getCompletedTasks, isWriting } = useContract();
   const { client, initializeXmtp } = useXmtp();
+  const { newOffersCount, markAsSeen } = useXmtpStream(client);
   const isMobile = useIsMobile();
 
   const [showForm, setShowForm] = useState(false);
   const { data: celoBalance } = useBalance({ address, chainId, query: { enabled: showForm } });
   const insufficientGas = !!address && celoBalance !== undefined && celoBalance.value === 0n;
   const [requests, setRequests] = useState<BountyRequest[]>([]);
+  const [requestsMeta, setRequestsMeta] = useState<Record<string, RequestMetadata>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedToken, setSelectedToken] = useState<TokenInfo | null>(null);
   const [formData, setFormData] = useState({
     title: "",
@@ -86,23 +93,36 @@ export default function Home() {
     }
   }, [chainId, tokens, selectedToken]);
 
-  const loadRequests = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await getAllRequests();
-      setRequests(data);
-    } catch (err) {
-      console.error("Error loading requests:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [getAllRequests]);
+  const getAllRequestsRef = useRef(getAllRequests);
+  getAllRequestsRef.current = getAllRequests;
 
   useEffect(() => {
-    if (requestCount !== undefined) {
-      loadRequests();
-    }
-  }, [requestCount, loadRequests, address]);
+    if (requestCount === undefined) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setLoadError(null);
+      try {
+        const data = await getAllRequestsRef.current();
+        if (!cancelled) setRequests(data);
+
+        const meta = await fetchAllRequestsMetadata();
+        if (!cancelled) {
+          const metaMap: Record<string, RequestMetadata> = {};
+          for (const m of meta) {
+            metaMap[m.content_hash] = m;
+          }
+          setRequestsMeta(metaMap);
+        }
+      } catch (err) {
+        console.error("Error loading requests:", err);
+        if (!cancelled) setLoadError("No se pudieron cargar los pedidos. Verificá que estés en una red de Celo compatible.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [requestCount, address]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -111,21 +131,44 @@ export default function Home() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const computeContentHash = (title: string, description: string): `0x${string}` => {
+    return keccak256(toHex(JSON.stringify({ title, description })));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedToken || !address) return;
 
     try {
-      const amount = parseUnits(formData.reward, selectedToken.decimals);
+      if (!client) {
+        await initializeXmtp();
+      }
 
-      await approveToken(selectedToken.address as `0x${string}`, amount);
+      const amount = parseUnits(formData.reward, selectedToken.decimals);
+      const isCelo = selectedToken.address === NATIVE_CELO.address;
+      const contentHash = computeContentHash(formData.title, formData.description);
+      const predictedId = Number(requestCount || 0n) + 1;
+
+      if (!isCelo) {
+        await approveToken(selectedToken.address as `0x${string}`, amount);
+      }
 
       await createRequest(
-        formData.title,
-        formData.description,
+        contentHash,
         selectedToken.address as `0x${string}`,
-        amount
+        amount,
+        isCelo ? amount : undefined
       );
+
+      await saveRequestMetadata({
+        id: predictedId,
+        content_hash: contentHash,
+        requester: address,
+        title: formData.title,
+        description: formData.description,
+        reward: amount.toString(),
+        token: selectedToken.address,
+      });
 
       setFormData({ title: "", description: "", reward: "" });
       setShowForm(false);
@@ -138,6 +181,7 @@ export default function Home() {
   const [offeringBounty, setOfferingBounty] = useState<BountyRequest | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<bigint | null>(null);
   const [selectedOffers, setSelectedOffers] = useState<Offer[]>([]);
+  const [offersMeta, setOffersMeta] = useState<OfferMetadata[]>([]);
   const [encryptionKeys, setEncryptionKeys] = useState<Record<string, string>>({});
   const [fileInfo, setFileInfo] = useState<Record<string, { fileName: string; mimeType: string }>>({});
   const [isRequestAccepted, setIsRequestAccepted] = useState(false);
@@ -155,7 +199,15 @@ export default function Home() {
     }
   };
 
-  const handleOfferClick = (req: BountyRequest) => {
+  const handleOfferClick = async (req: BountyRequest) => {
+    if (!client) {
+      try {
+        await initializeXmtp();
+      } catch (err) {
+        console.error("No se pudo inicializar XMTP:", err);
+        return;
+      }
+    }
     setOfferingBounty(req);
   };
 
@@ -163,19 +215,36 @@ export default function Home() {
     bountyId: bigint,
     _file: File,
     ipfsCID: string,
-    _encryptedKey: string
+    encryptedKey: string
   ) => {
-    await offerNote(bountyId, ipfsCID);
+    await offerNote(bountyId);
+
+    if (address) {
+      await saveOfferMetadata({
+        request_id: Number(bountyId),
+        seller: address,
+        ipfs_cid: ipfsCID,
+        encrypted_key: encryptedKey,
+        file_name: _file.name,
+        file_type: _file.type || "application/octet-stream",
+      });
+    }
+
     setOfferingBounty(null);
-    loadRequests();
+    refetchCount();
   };
 
   const handleViewOffers = async (requestId: bigint) => {
     try {
+      markAsSeen(Number(requestId));
       const data = await getOffers(requestId);
       setSelectedOffers(data);
       setSelectedRequest(requestId);
-      loadOfferKeys(Number(requestId), data);
+
+      const meta = await fetchOffersMetadata(Number(requestId));
+      setOffersMeta(meta);
+
+      loadOfferKeys(Number(requestId), data, meta);
 
       const reps: Record<string, { reputation: number; completedTasks: number; average: number }> = {};
       for (const offer of data) {
@@ -197,19 +266,32 @@ export default function Home() {
     }
   };
 
-  const loadOfferKeys = useCallback(async (bountyId: number, offers: Offer[]) => {
+  const loadOfferKeys = useCallback(async (bountyId: number, offers: Offer[], meta: OfferMetadata[]) => {
     if (!client || !offers.length) return;
     const keys: Record<string, string> = {};
     const files: Record<string, { fileName: string; mimeType: string }> = {};
-    try {
-      const convs = await client.conversations.list();
-      for (const conv of convs) {
-        const peerAddress = conv.peerAddress.toLowerCase();
-        const offerIndex = offers.findIndex(
-          (o) => o.seller.toLowerCase() === peerAddress
-        );
-        if (offerIndex === -1) continue;
-        const messages = await conv.messages();
+
+    for (let i = 0; i < offers.length; i++) {
+      const offerMeta = meta.find((m) => m.seller.toLowerCase() === offers[i].seller.toLowerCase());
+      if (offerMeta) {
+        keys[i.toString()] = offerMeta.encrypted_key;
+        files[i.toString()] = { fileName: offerMeta.file_name, mimeType: offerMeta.file_type };
+      }
+    }
+
+    for (const offer of offers) {
+      const offerIndex = offers.indexOf(offer);
+      if (keys[offerIndex.toString()]) continue;
+
+      try {
+        const inboxId = await client.fetchInboxIdByIdentifier({
+          identifier: offer.seller,
+          identifierKind: IdentifierKind.Ethereum,
+        });
+        if (!inboxId) continue;
+        const dm = await client.conversations.getDmByInboxId(inboxId);
+        if (!dm) continue;
+        const messages = await dm.messages();
         const prefix = `OFFER_KEY:${bountyId}:`;
         for (const msg of messages) {
           const content = msg.content;
@@ -226,10 +308,11 @@ export default function Home() {
           keys[offerIndex.toString()] = keyBase64;
           files[offerIndex.toString()] = { fileName, mimeType };
         }
+      } catch (err) {
+        console.error("Error loading offer keys from XMTP:", err);
       }
-    } catch (err) {
-      console.error("Error loading offer keys from XMTP:", err);
     }
+
     setEncryptionKeys(keys);
     setFileInfo(files);
   }, [client]);
@@ -239,7 +322,7 @@ export default function Home() {
     try {
       await acceptOffer(selectedRequest, BigInt(offerIndex), rating);
       setIsRequestAccepted(true);
-      loadRequests();
+      refetchCount();
     } catch (err) {
       console.error("Error accepting offer:", err);
     }
@@ -247,7 +330,7 @@ export default function Home() {
 
   const formatReward = (req: BountyRequest) => {
     const token = getTokenByAddress(chainId, req.token);
-    if (!token) return `${formatUnits(req.reward, 18)} tokens`;
+    if (!token) return `${formatUnits(req.reward, 18)} (token: ${req.token.slice(0, 6)}...${req.token.slice(-4)})`;
     return `${formatUnits(req.reward, token.decimals)} ${token.symbol}`;
   };
 
@@ -371,6 +454,21 @@ export default function Home() {
                 </Button>
               </div>
             </div>
+          ) : loadError ? (
+            <div className="container px-4 max-w-7xl">
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="rounded-full bg-destructive/10 p-4 mb-4">
+                  <Loader2 className="h-8 w-8 text-destructive" />
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Error al cargar</h2>
+                <p className="text-muted-foreground mb-6 max-w-md">
+                  {loadError}
+                </p>
+                <Button onClick={() => { setLoadError(null); refetchCount(); }}>
+                  Reintentar
+                </Button>
+              </div>
+            </div>
           ) : (
             <div className="container px-4 max-w-7xl">
             <div className="flex items-center justify-between mb-6">
@@ -394,13 +492,14 @@ export default function Home() {
             ) : openRequests.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {openRequests.map((req) => {
+                  const metum = requestsMeta[req.contentHash];
                   const token = getTokenByAddress(chainId, req.token);
                   return (
                     <Card key={req.id.toString()} className="flex flex-col justify-between">
                       <CardHeader className="p-4 pb-2">
                         <div className="flex items-start justify-between gap-2">
                           <CardTitle className="text-base font-bold leading-tight">
-                            {req.title}
+                            {metum?.title || `Request #${req.id.toString()}`}
                           </CardTitle>
                           <Badge variant="success" className="shrink-0 text-[10px] px-1.5 py-0">
                             Open
@@ -409,7 +508,7 @@ export default function Home() {
                       </CardHeader>
                       <CardContent className="px-4 pb-4 flex flex-col gap-2 flex-1">
                         <p className="text-sm text-muted-foreground line-clamp-2">
-                          {req.description}
+                          {metum?.description || `contentHash: ${req.contentHash.slice(0, 10)}...`}
                         </p>
                         <div className="flex items-center gap-2 mt-auto pt-2">
                           <span className="font-mono font-bold text-primary text-sm">
@@ -434,14 +533,21 @@ export default function Home() {
                           Ofrecer mis Apuntes
                         </Button>
                         {address === req.requester && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="mt-1 w-full"
-                            onClick={() => handleViewOffers(req.id)}
-                          >
-                            Ver ofertas
-                          </Button>
+                          <div className="relative mt-1 w-full">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => handleViewOffers(req.id)}
+                            >
+                              Ver ofertas
+                            </Button>
+                            {newOffersCount[Number(req.id)] > 0 && (
+                              <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center h-5 min-w-[20px] rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold px-1">
+                                {newOffersCount[Number(req.id)]}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </CardContent>
                     </Card>
@@ -465,13 +571,14 @@ export default function Home() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 opacity-70">
                   {closedRequests.map((req) => {
+                    const metum = requestsMeta[req.contentHash];
                     const token = getTokenByAddress(chainId, req.token);
                     return (
                       <Card key={req.id.toString()} className="flex flex-col justify-between">
                         <CardHeader className="p-4 pb-2">
                           <div className="flex items-start justify-between gap-2">
                             <CardTitle className="text-base font-bold leading-tight">
-                              {req.title}
+                              {metum?.title || `Request #${req.id.toString()}`}
                             </CardTitle>
                             <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0">
                               Cerrado
@@ -480,7 +587,7 @@ export default function Home() {
                         </CardHeader>
                         <CardContent className="px-4 pb-4 flex flex-col gap-2 flex-1">
                           <p className="text-sm text-muted-foreground line-clamp-2">
-                            {req.description}
+                            {metum?.description || `contentHash: ${req.contentHash.slice(0, 10)}...`}
                           </p>
                           <div className="flex items-center gap-2 mt-auto pt-2">
                             <span className="font-mono font-bold text-muted-foreground text-sm">
@@ -511,6 +618,7 @@ export default function Home() {
         open={offeringBounty !== null}
         onOpenChange={(open) => !open && setOfferingBounty(null)}
         bounty={offeringBounty}
+        bountyTitle={offeringBounty ? (requestsMeta[offeringBounty.contentHash]?.title || `Request #${offeringBounty.id}`) : undefined}
         onSubmit={handleOfferSubmit}
         xmtpClient={client}
         chainId={chainId}
@@ -526,6 +634,7 @@ export default function Home() {
             setFileInfo({});
             setIsRequestAccepted(false);
             setSellerReputations({});
+            setOffersMeta([]);
           }
         }}
       >
@@ -534,12 +643,16 @@ export default function Home() {
             <DialogTitle>Ofertas recibidas</DialogTitle>
           </DialogHeader>
           <PendingOffers
-            offers={selectedOffers.map((o, i) => ({
-              ...o,
-              index: i,
-              fileName: fileInfo[i]?.fileName || "",
-              mimeType: fileInfo[i]?.mimeType || "",
-            }))}
+            offers={selectedOffers.map((o, i) => {
+              const offerMeta = offersMeta.find((m) => m.seller.toLowerCase() === o.seller.toLowerCase());
+              return {
+                seller: o.seller,
+                link: offerMeta?.ipfs_cid || "",
+                index: i,
+                fileName: fileInfo[i]?.fileName || offerMeta?.file_name || "",
+                mimeType: fileInfo[i]?.mimeType || offerMeta?.file_type || "",
+              };
+            })}
             bountyId={Number(selectedRequest)}
             fileName=""
             mimeType=""

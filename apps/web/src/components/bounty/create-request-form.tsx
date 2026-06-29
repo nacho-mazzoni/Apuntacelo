@@ -41,6 +41,13 @@ export function CreateRequestForm({
         </div>
       )}
 
+      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-sm text-blue-800">
+          Al crear tu pedido, tu mensajería se activa automáticamente y los
+          vendedores podrán enviarte ofertas.
+        </p>
+      </div>
+
       <div className="flex flex-col space-y-1">
         <label className="text-sm font-medium">Título</label>
         <input

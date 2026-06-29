@@ -41,9 +41,9 @@ export async function encryptFile(file: File): Promise<EncryptedFile> {
 }
 
 export async function decryptFile(
-  encryptedData: ArrayBuffer,
-  keyRaw: ArrayBuffer,
-  iv: Uint8Array,
+  encryptedData: BufferSource,
+  keyRaw: BufferSource,
+  iv: BufferSource,
   fileName: string,
   mimeType: string
 ): Promise<DecryptedFile> {
@@ -56,7 +56,7 @@ export async function decryptFile(
   );
 
   const decryptedBuffer = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength) as ArrayBuffer },
+    { name: "AES-GCM", iv },
     key,
     encryptedData
   );
@@ -68,7 +68,7 @@ export async function decryptFile(
   };
 }
 
-export function arrayBufferToBase64(buffer: ArrayBuffer): string {
+export function arrayBufferToBase64(buffer: ArrayBufferLike): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
   for (let i = 0; i < bytes.byteLength; i++) {

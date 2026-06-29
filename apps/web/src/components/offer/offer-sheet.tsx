@@ -16,6 +16,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { IdentifierKind } from "@xmtp/browser-sdk";
 import { encryptFile, arrayBufferToBase64 } from "@/lib/file-encryption";
 import { uploadEncryptedFile } from "@/lib/ipfs";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -28,6 +29,7 @@ interface OfferSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bounty: BountyRequest | null;
+  bountyTitle?: string;
   onSubmit: (
     bountyId: bigint,
     file: File,
@@ -42,6 +44,7 @@ export function OfferSheet({
   open,
   onOpenChange,
   bounty,
+  bountyTitle,
   onSubmit,
   xmtpClient,
   chainId,
@@ -88,6 +91,11 @@ export function OfferSheet({
   const handleSubmit = async () => {
     if (!selectedFile || !bounty || !accepted || !xmtpClient) return;
 
+    if (!xmtpClient) {
+      alert("XMTP no está disponible. Esperá unos segundos e intentá de nuevo.");
+      return;
+    }
+
     setUploading(true);
     setProgress("Cifrando archivo...");
 
@@ -101,19 +109,30 @@ export function OfferSheet({
         selectedFile.name
       );
 
+      setProgress("Verificando disponibilidad del solicitante...");
+
+      const inboxId = await xmtpClient.fetchInboxIdByIdentifier({
+        identifier: bounty.requester,
+        identifierKind: IdentifierKind.Ethereum,
+      });
+
+      if (!inboxId) {
+        throw new Error("NO_INBOX");
+      }
+
       setProgress("Enviando clave al solicitante...");
 
       const keyBase64 = arrayBufferToBase64(encrypted.keyExported);
+      const ivBase64 = arrayBufferToBase64(encrypted.iv.buffer);
+      const combinedKey = ivBase64 + keyBase64;
 
-      const conversation = await xmtpClient.conversations.newConversation(
-        bounty.requester
-      );
-      await conversation.send({
-        type: "text",
-        content: `OFFER_KEY:${bounty.id}:${keyBase64}:${selectedFile.name}:${selectedFile.type}`,
+      const dm = await xmtpClient.conversations.createDmWithIdentifier({
+        identifier: bounty.requester,
+        identifierKind: IdentifierKind.Ethereum,
       });
+      await dm.sendText(`OFFER_KEY:${bounty.id}:${combinedKey}:${selectedFile.name}:${selectedFile.type}`);
 
-      await onSubmit(bounty.id, selectedFile, ipfsCID, keyBase64);
+      await onSubmit(bounty.id, selectedFile, ipfsCID, combinedKey);
 
       setSelectedFile(null);
       setAccepted(false);
@@ -121,7 +140,11 @@ export function OfferSheet({
       onOpenChange(false);
     } catch (error) {
       console.error("Error al ofrecer apuntes:", error);
-      alert("Error al procesar la oferta. Intenta de nuevo.");
+      const msg =
+        error instanceof Error && error.message === "NO_INBOX"
+          ? "El solicitante no tiene XMTP activado. Pedile que primero entre a la aplicación para activar su mensajería."
+          : "Error al procesar la oferta. Intenta de nuevo.";
+      alert(msg);
     } finally {
       setUploading(false);
       setProgress("");
@@ -216,6 +239,12 @@ export function OfferSheet({
         </div>
       )}
 
+      {!xmtpClient && selectedFile && (
+        <p className="text-sm text-muted-foreground text-center">
+          Inicializando XMTP...
+        </p>
+      )}
+
       <Button
         className="w-full"
         onClick={handleSubmit}
@@ -242,7 +271,7 @@ export function OfferSheet({
             <SheetDescription>
               {bounty && (
                 <span>
-                  Para: <strong>{bounty.title}</strong> | Recompensa:{" "}
+                  Para: <strong>{bountyTitle || "#" + bounty.id.toString()}</strong> | Recompensa:{" "}
                   <strong>{getRewardDisplay(bounty)}</strong>
                 </span>
               )}
@@ -262,7 +291,7 @@ export function OfferSheet({
           <DialogDescription>
             {bounty && (
                 <span>
-                  Para: <strong>{bounty.title}</strong> | Recompensa:{" "}
+                  Para: <strong>{bountyTitle || "#" + bounty.id.toString()}</strong> | Recompensa:{" "}
                   <strong>{getRewardDisplay(bounty)}</strong>
                 </span>
               )}

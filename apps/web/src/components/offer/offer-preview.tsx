@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Shield, Download } from "lucide-react";
-import { decryptFile } from "@/lib/file-encryption";
+import { decryptFile, base64ToArrayBuffer } from "@/lib/file-encryption";
 import { downloadFromIPFS } from "@/lib/ipfs";
 
 interface OfferPreviewProps {
@@ -35,7 +35,7 @@ export function OfferPreview({
     async (pdfData: ArrayBuffer) => {
       try {
         const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs`;
 
         const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
         const images: string[] = [];
@@ -99,18 +99,27 @@ export function OfferPreview({
 
         const encryptedData = await downloadFromIPFS(ipfsCID);
 
-        const keyBytes = new Uint8Array(
-          atob(keyBase64)
-            .split("")
-            .map((c) => c.charCodeAt(0))
-        );
+        let iv: Uint8Array;
+        let keyBytes: Uint8Array;
 
-        const iv = new Uint8Array(12);
+        if (keyBase64.length === 60) {
+          iv = new Uint8Array(base64ToArrayBuffer(keyBase64.slice(0, 16)));
+          keyBytes = new Uint8Array(
+            base64ToArrayBuffer(keyBase64.slice(16))
+          );
+        } else {
+          iv = new Uint8Array(12);
+          keyBytes = new Uint8Array(
+            atob(keyBase64)
+              .split("")
+              .map((c) => c.charCodeAt(0))
+          );
+        }
 
         const decrypted = await decryptFile(
           encryptedData,
-          keyBytes.buffer,
-          iv,
+          keyBytes as Uint8Array<ArrayBuffer>,
+          iv as Uint8Array<ArrayBuffer>,
           fileName,
           mimeType
         );
