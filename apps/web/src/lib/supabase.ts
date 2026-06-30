@@ -9,7 +9,9 @@ if (!supabaseUrl) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey ?? "");
+const url: string = supabaseUrl;
+
+export const supabase = createClient(url, supabaseAnonKey ?? "");
 
 export function getSupabaseAdmin() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -19,5 +21,5 @@ export function getSupabaseAdmin() {
         "Add it to your Vercel project environment variables (as a Secret).",
     );
   }
-  return createClient(supabaseUrl, serviceKey);
+  return createClient(url, serviceKey);
 }
