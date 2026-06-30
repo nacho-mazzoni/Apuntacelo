@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const supabaseAdmin = getSupabaseAdmin();
   const { searchParams } = new URL(req.url);
   const requestId = searchParams.get("request_id");
 
@@ -24,6 +27,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const supabaseAdmin = getSupabaseAdmin();
   const body = await req.json();
   const { request_id, seller, ipfs_cid, encrypted_key, file_name, file_type } = body;
 

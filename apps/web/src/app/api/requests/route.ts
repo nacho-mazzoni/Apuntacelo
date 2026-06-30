@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin
     .from("requests")
     .select("*")
@@ -15,6 +18,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const supabaseAdmin = getSupabaseAdmin();
   const body = await req.json();
   const { id, content_hash, requester, title, description, reward, token } = body;
 
