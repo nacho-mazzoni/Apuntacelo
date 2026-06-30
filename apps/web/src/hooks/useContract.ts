@@ -1,5 +1,7 @@
+"use client";
+
 import { useReadContract, useWriteContract, usePublicClient, useAccount } from "wagmi";
-import { celo } from "wagmi/chains";
+import { useCallback } from "react";
 import { parseUnits, erc20Abi } from "viem";
 import { CONTRACT_ADDRESS, NOTES_MARKETPLACE_ABI } from "@/lib/contract";
 import type { BountyRequest, Offer } from "@/lib/contract";
@@ -12,138 +14,145 @@ export function useContract() {
     address: CONTRACT_ADDRESS,
     abi: NOTES_MARKETPLACE_ABI,
     functionName: "getRequestCount",
-    chainId: celo.id,
     query: { enabled: !!address },
   });
 
   const { writeContractAsync, isPending: isWriting } = useWriteContract();
   const publicClient = usePublicClient();
 
-  const createRequest = async (
-    title: string,
-    description: string,
-    tokenAddress: `0x${string}`,
-    amount: bigint
-  ) => {
-    return writeContractAsync({
-      address: CONTRACT_ADDRESS,
-      abi: NOTES_MARKETPLACE_ABI,
-      functionName: "createRequest",
-      args: [title, description, tokenAddress, amount],
-    });
-  };
+  const waitForTx = useCallback(
+    async (hash: `0x${string}`) => {
+      if (!publicClient) return;
+      await publicClient.waitForTransactionReceipt({ hash });
+    },
+    [publicClient]
+  );
 
-  const offerNote = async (requestId: bigint, ipfsCID: string) => {
-    return writeContractAsync({
-      address: CONTRACT_ADDRESS,
-      abi: NOTES_MARKETPLACE_ABI,
-      functionName: "offerNote",
-      args: [requestId, ipfsCID],
-    });
-  };
+  const createRequest = useCallback(
+    async (contentHash: `0x${string}`, tokenAddress: `0x${string}`, amount: bigint, value?: bigint) => {
+      const hash = await writeContractAsync({
+        address: CONTRACT_ADDRESS,
+        abi: NOTES_MARKETPLACE_ABI,
+        functionName: "createRequest",
+        args: [contentHash, tokenAddress, amount],
+        value,
+      });
+      await waitForTx(hash);
+    },
+    [writeContractAsync, waitForTx]
+  );
 
-  const acceptOffer = async (
-    requestId: bigint,
-    offerIndex: bigint,
-    rating: number
-  ) => {
-    return writeContractAsync({
-      address: CONTRACT_ADDRESS,
-      abi: NOTES_MARKETPLACE_ABI,
-      functionName: "acceptOffer",
-      args: [requestId, offerIndex, rating],
-    });
-  };
+  const offerNote = useCallback(
+    async (requestId: bigint) => {
+      const hash = await writeContractAsync({
+        address: CONTRACT_ADDRESS,
+        abi: NOTES_MARKETPLACE_ABI,
+        functionName: "offerNote",
+        args: [requestId],
+      });
+      await waitForTx(hash);
+    },
+    [writeContractAsync, waitForTx]
+  );
 
-  const approveToken = async (
-    tokenAddress: `0x${string}`,
-    amount: bigint
-  ) => {
-    return writeContractAsync({
-      address: tokenAddress,
-      abi: ERC20_ABI,
-      functionName: "approve",
-      args: [CONTRACT_ADDRESS, amount],
-    });
-  };
+  const acceptOffer = useCallback(
+    async (requestId: bigint, offerIndex: bigint, rating: number) => {
+      const hash = await writeContractAsync({
+        address: CONTRACT_ADDRESS,
+        abi: NOTES_MARKETPLACE_ABI,
+        functionName: "acceptOffer",
+        args: [requestId, offerIndex, rating],
+      });
+      await waitForTx(hash);
+    },
+    [writeContractAsync, waitForTx]
+  );
 
-  const getRequest = async (requestId: bigint): Promise<BountyRequest> => {
-    const result = await publicClient!.readContract({
-      address: CONTRACT_ADDRESS,
-      abi: NOTES_MARKETPLACE_ABI,
-      functionName: "getRequest",
-      args: [requestId],
-    });
-    const [id, requester, title, description, reward, token, status] = result as [
-      bigint,
-      `0x${string}`,
-      string,
-      string,
-      bigint,
-      `0x${string}`,
-      number
-    ];
-    return { id, requester, title, description, reward, token, status };
-  };
+  const approveToken = useCallback(
+    async (tokenAddress: `0x${string}`, amount: bigint) => {
+      const hash = await writeContractAsync({
+        address: tokenAddress,
+        abi: ERC20_ABI,
+        functionName: "approve",
+        args: [CONTRACT_ADDRESS, amount],
+      });
+      await waitForTx(hash);
+    },
+    [writeContractAsync, waitForTx]
+  );
 
-  const getRequests = async (): Promise<BountyRequest[]> => {
+  const getRequest = useCallback(
+    async (requestId: bigint): Promise<BountyRequest> => {
+      const result = await publicClient!.readContract({
+        address: CONTRACT_ADDRESS,
+        abi: NOTES_MARKETPLACE_ABI,
+        functionName: "getRequest",
+        args: [requestId],
+      });
+      const [id, requester, contentHash, reward, token, status] = result as [
+        bigint,
+        `0x${string}`,
+        `0x${string}`,
+        bigint,
+        `0x${string}`,
+        number
+      ];
+      return { id, requester, contentHash, reward, token, status };
+    },
+    [publicClient]
+  );
+
+  const getAllRequests = useCallback(async (): Promise<BountyRequest[]> => {
     const count = Number(requestCount || 0n);
-    const requests: BountyRequest[] = [];
-    for (let i = 1; i <= count; i++) {
-      try {
-        const req = await getRequest(BigInt(i));
-        if (req.status === 0) {
-          requests.push(req);
-        }
-      } catch {
-        break;
-      }
-    }
-    return requests;
-  };
+    if (count === 0) return [];
+    const ids = Array.from({ length: count }, (_, i) => BigInt(i + 1));
+    const results = await Promise.all(
+      ids.map((id) => getRequest(id).catch((err) => {
+        console.error(`Error obteniendo request ${id}:`, err);
+        return null;
+      }))
+    );
+    return results.filter((r): r is BountyRequest => r !== null);
+  }, [requestCount, getRequest]);
 
-  const getOffers = async (requestId: bigint): Promise<Offer[]> => {
-    const result = await publicClient!.readContract({
-      address: CONTRACT_ADDRESS,
-      abi: NOTES_MARKETPLACE_ABI,
-      functionName: "getOffers",
-      args: [requestId],
-    });
-    return result as Offer[];
-  };
+  const getOffers = useCallback(
+    async (requestId: bigint): Promise<Offer[]> => {
+      const result = await publicClient!.readContract({
+        address: CONTRACT_ADDRESS,
+        abi: NOTES_MARKETPLACE_ABI,
+        functionName: "getOffers",
+        args: [requestId],
+      });
+      return (result as `0x${string}`[]).map((seller) => ({ seller }));
+    },
+    [publicClient]
+  );
 
-  const getAllRequests = async (): Promise<BountyRequest[]> => {
-    const count = Number(requestCount || 0n);
-    const requests: BountyRequest[] = [];
-    for (let i = 1; i <= count; i++) {
-      try {
-        requests.push(await getRequest(BigInt(i)));
-      } catch {
-        break;
-      }
-    }
-    return requests;
-  };
+  const getReputation = useCallback(
+    async (seller: `0x${string}`): Promise<bigint> => {
+      const result = await publicClient!.readContract({
+        address: CONTRACT_ADDRESS,
+        abi: NOTES_MARKETPLACE_ABI,
+        functionName: "reputation",
+        args: [seller],
+      });
+      return result as bigint;
+    },
+    [publicClient]
+  );
 
-  const getReputation = async (seller: `0x${string}`): Promise<bigint> => {
-    const result = await publicClient!.readContract({
-      address: CONTRACT_ADDRESS,
-      abi: NOTES_MARKETPLACE_ABI,
-      functionName: "reputation",
-      args: [seller],
-    });
-    return result as bigint;
-  };
-
-  const getCompletedTasks = async (seller: `0x${string}`): Promise<bigint> => {
-    const result = await publicClient!.readContract({
-      address: CONTRACT_ADDRESS,
-      abi: NOTES_MARKETPLACE_ABI,
-      functionName: "completedTasks",
-      args: [seller],
-    });
-    return result as bigint;
-  };
+  const getCompletedTasks = useCallback(
+    async (seller: `0x${string}`): Promise<bigint> => {
+      const result = await publicClient!.readContract({
+        address: CONTRACT_ADDRESS,
+        abi: NOTES_MARKETPLACE_ABI,
+        functionName: "completedTasks",
+        args: [seller],
+      });
+      return result as bigint;
+    },
+    [publicClient]
+  );
 
   return {
     requestCount,
@@ -153,7 +162,6 @@ export function useContract() {
     acceptOffer,
     approveToken,
     getRequest,
-    getRequests,
     getAllRequests,
     getOffers,
     getReputation,

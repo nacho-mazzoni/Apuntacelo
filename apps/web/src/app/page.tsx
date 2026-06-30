@@ -30,6 +30,7 @@ import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { celo, celoSepolia } from "wagmi/chains";
 import { keccak256, toHex, parseUnits, formatUnits } from "viem";
 import { OfferSheet } from "@/components/offer/offer-sheet";
+import { OfferPreview } from "@/components/offer/offer-preview";
 import { PendingOffers } from "@/components/offer/pending-offers";
 import { ConnectGate } from "@/components/shared/connect-gate";
 import { CreateRequestForm } from "@/components/bounty/create-request-form";
@@ -38,7 +39,7 @@ import { getTokensForChain, getTokenByAddress, NATIVE_CELO } from "@/lib/tokens"
 import type { TokenInfo } from "@/lib/tokens";
 import type { BountyRequest, Offer } from "@/lib/contract";
 import { fetchAllRequestsMetadata, saveRequestMetadata, fetchOffersMetadata, saveOfferMetadata, fetchRequestMetadata } from "@/lib/api";
-import type { RequestMetadata, OfferMetadata } from "@/lib/api";
+import type { RequestMetadata, OfferMetadata, AcceptedOfferInfo } from "@/lib/api";
 
 export default function Home() {
   const { address, isConnected } = useAccount();
@@ -189,6 +190,20 @@ export default function Home() {
     Record<string, { reputation: number; completedTasks: number; average: number }>
   >({});
 
+  const [acceptedOffers, setAcceptedOffers] = useState<Record<number, AcceptedOfferInfo>>({});
+  const [downloadRequestId, setDownloadRequestId] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("acceptedOffers");
+      if (stored) setAcceptedOffers(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("acceptedOffers", JSON.stringify(acceptedOffers));
+  }, [acceptedOffers]);
+
   const onRequestNotes = async () => {
     try {
       if (!client) {
@@ -321,7 +336,27 @@ export default function Home() {
     if (selectedRequest === null) return;
     try {
       await acceptOffer(selectedRequest, BigInt(offerIndex), rating);
+
+      const acceptedSeller = selectedOffers[offerIndex]?.seller;
+      const acceptedMeta = offersMeta.find(
+        (m) => m.seller.toLowerCase() === acceptedSeller?.toLowerCase()
+      );
+      if (acceptedMeta) {
+        setAcceptedOffers((prev) => ({
+          ...prev,
+          [Number(selectedRequest)]: {
+            ipfsCID: acceptedMeta.ipfs_cid,
+            encryptedKey: acceptedMeta.encrypted_key,
+            fileName: acceptedMeta.file_name,
+            mimeType: acceptedMeta.file_type,
+            offerIndex,
+          },
+        }));
+      }
+
       setIsRequestAccepted(true);
+      const data = await getAllRequestsRef.current();
+      setRequests(data);
       refetchCount();
     } catch (err) {
       console.error("Error accepting offer:", err);
@@ -523,15 +558,17 @@ export default function Home() {
                         <div className="text-[11px] text-muted-foreground font-mono">
                           por {truncateAddress(req.requester)}
                         </div>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="mt-2 w-full"
-                          onClick={() => handleOfferClick(req)}
-                          disabled={!isConnected}
-                        >
-                          Ofrecer mis Apuntes
-                        </Button>
+                        {address !== req.requester && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="mt-2 w-full"
+                            onClick={() => handleOfferClick(req)}
+                            disabled={!isConnected}
+                          >
+                            Ofrecer mis Apuntes
+                          </Button>
+                        )}
                         {address === req.requester && (
                           <div className="relative mt-1 w-full">
                             <Button
@@ -602,6 +639,16 @@ export default function Home() {
                           <div className="text-[11px] text-muted-foreground font-mono">
                             por {truncateAddress(req.requester)}
                           </div>
+                          {address === req.requester && acceptedOffers[Number(req.id)] && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mt-2 w-full"
+                              onClick={() => setDownloadRequestId(Number(req.id))}
+                            >
+                              Descargar apunte
+                            </Button>
+                          )}
                         </CardContent>
                       </Card>
                     );
@@ -613,6 +660,27 @@ export default function Home() {
           )}
         </section>
       </main>
+
+      <Dialog
+        open={downloadRequestId !== null}
+        onOpenChange={(open) => !open && setDownloadRequestId(null)}
+      >
+        <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Descargar Apunte</DialogTitle>
+          </DialogHeader>
+          {downloadRequestId !== null && acceptedOffers[downloadRequestId] && (
+            <OfferPreview
+              ipfsCID={acceptedOffers[downloadRequestId].ipfsCID}
+              fileName={acceptedOffers[downloadRequestId].fileName}
+              mimeType={acceptedOffers[downloadRequestId].mimeType}
+              keyBase64={acceptedOffers[downloadRequestId].encryptedKey}
+              isOwner={true}
+              isDecrypted={true}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <OfferSheet
         open={offeringBounty !== null}
@@ -662,7 +730,7 @@ export default function Home() {
               requests.find((r) => r.id === selectedRequest)?.requester
             }
             onAccept={handleAcceptOffer}
-            isAccepted={isRequestAccepted}
+            isAccepted={isRequestAccepted || (selectedRequest !== null && !!acceptedOffers[Number(selectedRequest)])}
             sellerReputations={sellerReputations}
           />
         </DialogContent>

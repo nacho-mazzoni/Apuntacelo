@@ -5,20 +5,18 @@ export const CONTRACT_ADDRESS =
 export const NOTES_MARKETPLACE_ABI = [
   {
     inputs: [
-      { internalType: "string", name: "_title", type: "string" },
-      { internalType: "string", name: "_description", type: "string" },
+      { internalType: "bytes32", name: "_contentHash", type: "bytes32" },
       { internalType: "address", name: "_token", type: "address" },
       { internalType: "uint256", name: "_amount", type: "uint256" },
     ],
     name: "createRequest",
     outputs: [],
-    stateMutability: "nonpayable",
+    stateMutability: "payable",
     type: "function",
   },
   {
     inputs: [
       { internalType: "uint256", name: "_requestId", type: "uint256" },
-      { internalType: "string", name: "_link", type: "string" },
     ],
     name: "offerNote",
     outputs: [],
@@ -42,8 +40,7 @@ export const NOTES_MARKETPLACE_ABI = [
     outputs: [
       { internalType: "uint256", name: "id", type: "uint256" },
       { internalType: "address", name: "requester", type: "address" },
-      { internalType: "string", name: "title", type: "string" },
-      { internalType: "string", name: "description", type: "string" },
+      { internalType: "bytes32", name: "contentHash", type: "bytes32" },
       { internalType: "uint256", name: "reward", type: "uint256" },
       { internalType: "address", name: "token", type: "address" },
       { internalType: "uint8", name: "status", type: "uint8" },
@@ -62,15 +59,7 @@ export const NOTES_MARKETPLACE_ABI = [
     inputs: [{ internalType: "uint256", name: "_requestId", type: "uint256" }],
     name: "getOffers",
     outputs: [
-      {
-        components: [
-          { internalType: "address", name: "seller", type: "address" },
-          { internalType: "string", name: "link", type: "string" },
-        ],
-        internalType: "struct BountyBasedNotes.Offer[]",
-        name: "",
-        type: "tuple[]",
-      },
+      { internalType: "address[]", name: "", type: "address[]" },
     ],
     stateMutability: "view",
     type: "function",
@@ -94,9 +83,9 @@ export const NOTES_MARKETPLACE_ABI = [
     inputs: [
       { indexed: true, internalType: "uint256", name: "requestId", type: "uint256" },
       { indexed: true, internalType: "address", name: "requester", type: "address" },
-      { indexed: false, internalType: "string", name: "title", type: "string" },
+      { indexed: true, internalType: "bytes32", name: "contentHash", type: "bytes32" },
       { indexed: false, internalType: "uint256", name: "reward", type: "uint256" },
-      { indexed: true, internalType: "address", name: "token", type: "address" },
+      { indexed: false, internalType: "address", name: "token", type: "address" },
     ],
     name: "RequestCreated",
     type: "event",
@@ -106,7 +95,6 @@ export const NOTES_MARKETPLACE_ABI = [
     inputs: [
       { indexed: true, internalType: "uint256", name: "requestId", type: "uint256" },
       { indexed: true, internalType: "address", name: "seller", type: "address" },
-      { indexed: false, internalType: "string", name: "link", type: "string" },
     ],
     name: "OfferSubmitted",
     type: "event",
@@ -126,8 +114,7 @@ export const NOTES_MARKETPLACE_ABI = [
 export interface BountyRequest {
   id: bigint;
   requester: `0x${string}`;
-  title: string;
-  description: string;
+  contentHash: `0x${string}`;
   reward: bigint;
   token: `0x${string}`;
   status: number;
@@ -135,5 +122,4 @@ export interface BountyRequest {
 
 export interface Offer {
   seller: `0x${string}`;
-  link: string;
 }

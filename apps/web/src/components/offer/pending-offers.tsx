@@ -66,7 +66,6 @@ export function PendingOffers({
     try {
       await onAccept(selectedOffer, rating);
       setShowRating(false);
-      setSelectedOffer(null);
     } catch (err) {
       console.error("Error aceptando oferta:", err);
     } finally {
@@ -113,6 +112,7 @@ export function PendingOffers({
                     mimeType={offer.mimeType || mimeType}
                     keyBase64={encryptionKeys[offer.index.toString()] || ""}
                     isOwner={isOwner}
+                    isDecrypted={isAccepted}
                     onAccept={
                       isOwner && !isAccepted
                         ? () => setShowRating(true)

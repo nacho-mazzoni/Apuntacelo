@@ -21,6 +21,14 @@ export interface OfferMetadata {
   created_at: string;
 }
 
+export interface AcceptedOfferInfo {
+  ipfsCID: string;
+  encryptedKey: string;
+  fileName: string;
+  mimeType: string;
+  offerIndex: number;
+}
+
 export async function fetchRequestMetadata(contentHash: string): Promise<RequestMetadata | null> {
   try {
     const res = await fetch(`/api/requests`);

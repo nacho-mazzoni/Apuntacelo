@@ -12,8 +12,7 @@ contract BountyBasedNotes {
     struct Request {
         uint256 id;
         address requester;
-        string title;
-        string description;
+        bytes32 contentHash;
         uint256 reward;
         address token;
         Status status;
@@ -21,7 +20,6 @@ contract BountyBasedNotes {
 
     struct Offer {
         address seller;
-        string link;
     }
 
     uint256 private _nextRequestId = 1;
@@ -34,15 +32,14 @@ contract BountyBasedNotes {
     event RequestCreated(
         uint256 indexed requestId,
         address indexed requester,
-        string title,
+        bytes32 indexed contentHash,
         uint256 reward,
-        address indexed token
+        address token
     );
 
     event OfferSubmitted(
         uint256 indexed requestId,
-        address indexed seller,
-        string link
+        address indexed seller
     );
 
     event OfferAccepted(
@@ -57,22 +54,23 @@ contract BountyBasedNotes {
     );
 
     function createRequest(
-        string calldata _title,
-        string calldata _description,
+        bytes32 _contentHash,
         address _token,
         uint256 _amount
-    ) external {
+    ) external payable {
         require(_amount > 0, "La recompensa debe ser mayor a 0");
-        require(_token != address(0), "Token invalido");
 
-        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+        if (_token == address(0)) {
+            require(msg.value == _amount, "Monto de CELO incorrecto");
+        } else {
+            IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+        }
 
         uint256 requestId = _nextRequestId;
         requests[requestId] = Request({
             id: requestId,
             requester: msg.sender,
-            title: _title,
-            description: _description,
+            contentHash: _contentHash,
             reward: _amount,
             token: _token,
             status: Status.Open
@@ -80,19 +78,19 @@ contract BountyBasedNotes {
 
         _nextRequestId += 1;
 
-        emit RequestCreated(requestId, msg.sender, _title, _amount, _token);
+        emit RequestCreated(requestId, msg.sender, _contentHash, _amount, _token);
     }
 
-    function offerNote(uint256 _requestId, string calldata _link) external {
+    function offerNote(uint256 _requestId) external {
         Request memory req = requests[_requestId];
         require(req.id != 0, "Solicitud no existe");
         require(req.status == Status.Open, "Solicitud cerrada");
 
         offersByRequest[_requestId].push(
-            Offer({ seller: msg.sender, link: _link })
+            Offer({ seller: msg.sender })
         );
 
-        emit OfferSubmitted(_requestId, msg.sender, _link);
+        emit OfferSubmitted(_requestId, msg.sender);
     }
 
     function acceptOffer(
@@ -109,7 +107,12 @@ contract BountyBasedNotes {
         Offer memory selectedOffer = offersByRequest[_requestId][_offerIndex];
         require(selectedOffer.seller != address(0), "Oferta invalida");
 
-        IERC20(req.token).safeTransfer(selectedOffer.seller, req.reward);
+        if (req.token == address(0)) {
+            (bool sent, ) = payable(selectedOffer.seller).call{value: req.reward}("");
+            require(sent, "Transferencia de CELO fallida");
+        } else {
+            IERC20(req.token).safeTransfer(selectedOffer.seller, req.reward);
+        }
 
         reputation[selectedOffer.seller] += rating;
         completedTasks[selectedOffer.seller] += 1;
@@ -127,9 +130,14 @@ contract BountyBasedNotes {
     function getOffers(uint256 _requestId)
         external
         view
-        returns (Offer[] memory)
+        returns (address[] memory)
     {
-        return offersByRequest[_requestId];
+        Offer[] storage offers = offersByRequest[_requestId];
+        address[] memory sellers = new address[](offers.length);
+        for (uint256 i = 0; i < offers.length; i++) {
+            sellers[i] = offers[i].seller;
+        }
+        return sellers;
     }
 
     function getRequestCount() external view returns (uint256) {
@@ -142,8 +150,7 @@ contract BountyBasedNotes {
         returns (
             uint256 id,
             address requester,
-            string memory title,
-            string memory description,
+            bytes32 contentHash,
             uint256 reward,
             address token,
             Status status
@@ -153,8 +160,7 @@ contract BountyBasedNotes {
         return (
             req.id,
             req.requester,
-            req.title,
-            req.description,
+            req.contentHash,
             req.reward,
             req.token,
             req.status

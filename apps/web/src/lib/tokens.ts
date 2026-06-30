@@ -8,8 +8,16 @@ export interface TokenInfo {
   icon?: string;
 }
 
+export const NATIVE_CELO: TokenInfo = {
+  address: "0x0000000000000000000000000000000000000000",
+  symbol: "CELO",
+  name: "Celo Native",
+  decimals: 18,
+};
+
 export const TOKENS: Record<number, TokenInfo[]> = {
   [celo.id]: [
+    NATIVE_CELO,
     {
       address: "0x765de816845861e75a25fca122bb6898b8b1282a",
       symbol: "cUSD",
@@ -30,6 +38,7 @@ export const TOKENS: Record<number, TokenInfo[]> = {
     },
   ],
   [celoSepolia.id]: [
+    NATIVE_CELO,
     {
       address: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
       symbol: "cUSD",
