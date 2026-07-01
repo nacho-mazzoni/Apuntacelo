@@ -3,7 +3,7 @@ import { useWalletClient, useAccount } from "wagmi";
 
 type XmtpClient = any;
 
-export function useXmtp() {
+export function useXmtp(pollEnabled = true) {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
 
@@ -49,13 +49,17 @@ export function useXmtp() {
   };
 
   useEffect(() => {
-    if (!client) return;
+    if (!client || !pollEnabled) return;
     const interval = setInterval(async () => {
-      const convs = await client.conversations.list();
-      setConversations(convs);
+      try {
+        const convs = await client.conversations.list();
+        setConversations(convs);
+      } catch (err) {
+        console.error("Error polling XMTP conversations:", err);
+      }
     }, 10_000);
     return () => clearInterval(interval);
-  }, [client]);
+  }, [client, pollEnabled]);
 
   return { client, conversations, initializeXmtp };
 }

@@ -1,15 +1,14 @@
 
-> web@0.1.0 build /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/web
+> web@0.1.0 build C:\Celo\Apuntacelo\apps\web
 > next build
 
   ▲ Next.js 14.2.35
-  - Environments: .env.local
 
    Creating an optimized production build ...
  ⚠ Compiled with warnings
 
 ../../node_modules/.pnpm/@metamask+sdk@0.33.1/node_modules/@metamask/sdk/dist/browser/es/metamask-sdk.js
-Module not found: Can't resolve '@react-native-async-storage/async-storage' in '/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/@metamask+sdk@0.33.1/node_modules/@metamask/sdk/dist/browser/es'
+Module not found: Can't resolve '@react-native-async-storage/async-storage' in 'C:\Celo\Apuntacelo\node_modules\.pnpm\@metamask+sdk@0.33.1\node_modules\@metamask\sdk\dist\browser\es'
 
 Import trace for requested module:
 ../../node_modules/.pnpm/@metamask+sdk@0.33.1/node_modules/@metamask/sdk/dist/browser/es/metamask-sdk.js
@@ -33,7 +32,7 @@ Import trace for requested module:
 ./src/components/wallet-provider.tsx
 
 ../../node_modules/.pnpm/@metamask+sdk@0.33.1/node_modules/@metamask/sdk/dist/browser/es/metamask-sdk.js
-Module not found: Can't resolve '@react-native-async-storage/async-storage' in '/home/nacho_mazzoni/Proyectos/celo/Apuntacelo/node_modules/.pnpm/@metamask+sdk@0.33.1/node_modules/@metamask/sdk/dist/browser/es'
+Module not found: Can't resolve '@react-native-async-storage/async-storage' in 'C:\Celo\Apuntacelo\node_modules\.pnpm\@metamask+sdk@0.33.1\node_modules\@metamask\sdk\dist\browser\es'
 
 Import trace for requested module:
 ../../node_modules/.pnpm/@metamask+sdk@0.33.1/node_modules/@metamask/sdk/dist/browser/es/metamask-sdk.js
@@ -57,23 +56,19 @@ Import trace for requested module:
 ./src/components/wallet-provider.tsx
 
    Linting and checking validity of types ...
-   Collecting page data ...
-   Generating static pages (0/4) ...
-   Generating static pages (1/4) 
-   Generating static pages (2/4) 
-   Generating static pages (3/4) 
- ✓ Generating static pages (4/4)
-   Finalizing page optimization ...
-   Collecting build traces ...
+Failed to compile.
 
-Route (app)                              Size     First Load JS
-┌ ○ /                                    12.6 kB         307 kB
-└ ○ /_not-found                          879 B            90 kB
-+ First Load JS shared by all            89.1 kB
-  ├ chunks/809-76e3f79202715f5b.js       31.9 kB
-  ├ chunks/d003c1c0-4d619f687cecb69e.js  53.6 kB
-  └ other shared chunks (total)          3.54 kB
+./vitest.config.ts:11:5
+Type error: No overload matches this call.
+  The last overload gave the following error.
+    Object literal may only specify known properties, and 'jsx' does not exist in type 'ESBuildOptions'.
 
-
-○  (Static)  prerendered as static content
-
+[0m [90m  9 |[39m   }[33m,[39m[0m
+[0m [90m 10 |[39m   esbuild[33m:[39m {[0m
+[0m[31m[1m>[22m[39m[90m 11 |[39m     jsx[33m:[39m [32m"automatic"[39m[33m,[39m[0m
+[0m [90m    |[39m     [31m[1m^[22m[39m[0m
+[0m [90m 12 |[39m   }[33m,[39m[0m
+[0m [90m 13 |[39m   test[33m:[39m {[0m
+[0m [90m 14 |[39m     environment[33m:[39m [32m"jsdom"[39m[33m,[39m[0m
+Next.js build worker exited with code: 1 and signal: null
+ ELIFECYCLE  Command failed with exit code 1.

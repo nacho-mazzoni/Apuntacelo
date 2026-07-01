@@ -2,10 +2,9 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +20,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { Zap, Upload, FileText, Loader2, Plus } from "lucide-react";
+import { Zap, Upload, FileText, Plus } from "lucide-react";
 import { useXmtp } from "@/hooks/useXmtp";
 import { useContract } from "@/hooks/useContract";
 import { useAccount, useChainId } from "wagmi";
@@ -29,38 +28,34 @@ import { OfferSheet } from "@/components/offer-sheet";
 import { PendingOffers } from "@/components/pending-offers";
 import { ConnectGate } from "@/components/connect-gate";
 import { CreateRequestForm } from "@/components/create-request-form";
+import { RequestCard } from "@/components/request-card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
 import { useBalance } from "wagmi";
-import { parseUnits, formatUnits } from "viem";
-import { getTokensForChain, getTokenByAddress } from "@/lib/tokens";
-import type { TokenInfo } from "@/lib/tokens";
+import { formatUnits } from "viem";
+import { getTokenByAddress } from "@/lib/tokens";
+import { clearIPFSCache } from "@/lib/ipfs";
 import type { BountyRequest, Offer } from "@/lib/contract";
 
 export default function Home() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { requestCount, createRequest, getRequests, getOffers, approveToken, offerNote, acceptOffer, isWriting } = useContract();
-  const { client, initializeXmtp } = useXmtp();
+  const { requestCount, createRequest, getRequests, getOffers, approveToken, offerNote, acceptOffer, isWriting, waitForTx } = useContract();
   const isMobile = useIsMobile();
 
   const [showForm, setShowForm] = useState(false);
-  const { data: celoBalance } = useBalance({ address, chainId, query: { enabled: showForm } });
-  const insufficientGas = !!address && celoBalance !== undefined && celoBalance.value === 0n;
   const [requests, setRequests] = useState<BountyRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedToken, setSelectedToken] = useState<TokenInfo | null>(null);
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    reward: "",
-  });
+  const [offeringBounty, setOfferingBounty] = useState<BountyRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<bigint | null>(null);
+  const [selectedOffers, setSelectedOffers] = useState<Offer[]>([]);
+  const [encryptionKeys, setEncryptionKeys] = useState<Record<string, string>>({});
+  const [fileInfo, setFileInfo] = useState<Record<string, { fileName: string; mimeType: string }>>({});
 
-  const tokens = getTokensForChain(chainId);
-
-  useEffect(() => {
-    if (tokens.length > 0 && !selectedToken) {
-      setSelectedToken(tokens[0]);
-    }
-  }, [chainId, tokens, selectedToken]);
+  const { addToast } = useToast();
+  const { client, initializeXmtp } = useXmtp(selectedRequest !== null);
+  const { data: celoBalance } = useBalance({ address, chainId, query: { enabled: showForm, staleTime: 30_000 } });
+  const insufficientGas = !!address && celoBalance !== undefined && celoBalance.value === 0n;
 
   const loadRequests = useCallback(async () => {
     try {
@@ -80,50 +75,34 @@ export default function Home() {
     }
   }, [requestCount, loadRequests]);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  const handleFormSubmit = async (
+    title: string,
+    description: string,
+    tokenAddress: `0x${string}`,
+    amount: bigint
   ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedToken || !address) return;
-
+    if (!address) return;
     try {
-      const amount = parseUnits(formData.reward, selectedToken.decimals);
-
-      await approveToken(selectedToken.address as `0x${string}`, amount);
-
-      await createRequest(
-        formData.title,
-        formData.description,
-        selectedToken.address as `0x${string}`,
-        amount
-      );
-
-      setFormData({ title: "", description: "", reward: "" });
+      const approveHash = await approveToken(tokenAddress, amount);
+      await waitForTx(approveHash);
+      const createHash = await createRequest(title, description, tokenAddress, amount);
+      await waitForTx(createHash);
       setShowForm(false);
-      setTimeout(loadRequests, 2000);
-    } catch (err) {
-      console.error("Error creating request:", err);
+      loadRequests();
+      addToast("Pedido creado exitosamente", "success");
+    } catch {
+      addToast("Error al crear el pedido", "error");
     }
   };
-
-  const [offeringBounty, setOfferingBounty] = useState<BountyRequest | null>(null);
-  const [selectedRequest, setSelectedRequest] = useState<bigint | null>(null);
-  const [selectedOffers, setSelectedOffers] = useState<Offer[]>([]);
-  const [encryptionKeys, setEncryptionKeys] = useState<Record<string, string>>({});
-  const [fileInfo, setFileInfo] = useState<Record<string, { fileName: string; mimeType: string }>>({});
 
   const onRequestNotes = async () => {
     try {
       if (!client) {
         await initializeXmtp();
+        addToast("XMTP inicializado correctamente", "success");
       }
-    } catch (err) {
-      console.error("No se pudo inicializar XMTP:", err);
+    } catch {
+      addToast("No se pudo inicializar XMTP", "error");
     }
   };
 
@@ -137,7 +116,8 @@ export default function Home() {
     ipfsCID: string,
     _encryptedKey: string
   ) => {
-    await offerNote(bountyId, ipfsCID);
+    const hash = await offerNote(bountyId, ipfsCID);
+    await waitForTx(hash);
     setOfferingBounty(null);
     loadRequests();
   };
@@ -147,67 +127,88 @@ export default function Home() {
       const data = await getOffers(requestId);
       setSelectedOffers(data);
       setSelectedRequest(requestId);
-      loadOfferKeys(Number(requestId), data);
-    } catch (err) {
-      console.error("Error loading offers:", err);
+    } catch {
+      addToast("Error al cargar ofertas", "error");
     }
   };
 
-  const loadOfferKeys = useCallback(async (bountyId: number, offers: Offer[]) => {
-    if (!client || !offers.length) return;
-    const keys: Record<string, string> = {};
-    const files: Record<string, { fileName: string; mimeType: string }> = {};
+  const handleLoadOfferKey = useCallback(async (offerIndex: number, sellerAddress: `0x${string}`) => {
+    if (!client || selectedRequest === null) return;
     try {
       const convs = await client.conversations.list();
-      for (const conv of convs) {
-        const peerAddress = conv.peerAddress.toLowerCase();
-        const offerIndex = offers.findIndex(
-          (o) => o.seller.toLowerCase() === peerAddress
-        );
-        if (offerIndex === -1) continue;
-        const messages = await conv.messages();
-        const prefix = `OFFER_KEY:${bountyId}:`;
-        for (const msg of messages) {
-          const content = msg.content;
-          if (typeof content !== "string" || !content.startsWith(prefix)) continue;
-          const rest = content.slice(prefix.length);
-          const keyEnd = rest.indexOf(":");
-          if (keyEnd === -1) continue;
-          const keyBase64 = rest.slice(0, keyEnd);
-          const rest2 = rest.slice(keyEnd + 1);
-          const lastColon = rest2.lastIndexOf(":");
-          if (lastColon === -1) continue;
-          const fileName = rest2.slice(0, lastColon);
-          const mimeType = rest2.slice(lastColon + 1);
-          keys[offerIndex.toString()] = keyBase64;
-          files[offerIndex.toString()] = { fileName, mimeType };
-        }
+      const conv = convs.find(
+        (c: any) => c.peerAddress.toLowerCase() === sellerAddress.toLowerCase()
+      );
+      if (!conv) {
+        addToast("No se encontró conversación XMTP con ese vendedor", "error");
+        return;
       }
+      const messages = await conv.messages();
+      const prefix = `OFFER_KEY:${Number(selectedRequest)}:`;
+      for (const msg of messages) {
+        const content = msg.content;
+        if (typeof content !== "string" || !content.startsWith(prefix)) continue;
+        const rest = content.slice(prefix.length);
+        const keyEnd = rest.indexOf(":");
+        if (keyEnd === -1) continue;
+        const keyBase64 = rest.slice(0, keyEnd);
+        const rest2 = rest.slice(keyEnd + 1);
+        const lastColon = rest2.lastIndexOf(":");
+        if (lastColon === -1) continue;
+        const fileName = rest2.slice(0, lastColon);
+        const mimeType = rest2.slice(lastColon + 1);
+        setEncryptionKeys(prev => ({ ...prev, [offerIndex.toString()]: keyBase64 }));
+        setFileInfo(prev => ({ ...prev, [offerIndex.toString()]: { fileName, mimeType } }));
+        return;
+      }
+      addToast("No se encontró la clave de cifrado para esta oferta", "error");
     } catch (err) {
-      console.error("Error loading offer keys from XMTP:", err);
+      console.error("Error loading offer key from XMTP:", err);
+      addToast("Error al cargar clave de la oferta", "error");
     }
-    setEncryptionKeys(keys);
-    setFileInfo(files);
-  }, [client]);
+  }, [client, selectedRequest, addToast]);
 
   const handleAcceptOffer = async (offerIndex: number, rating: number) => {
     if (selectedRequest === null) return;
     try {
-      await acceptOffer(selectedRequest, BigInt(offerIndex), rating);
+      const hash = await acceptOffer(selectedRequest, BigInt(offerIndex), rating);
+      await waitForTx(hash);
       loadRequests();
-    } catch (err) {
-      console.error("Error accepting offer:", err);
+    } catch {
+      addToast("Error al aceptar oferta", "error");
     }
   };
 
-  const formatReward = (req: BountyRequest) => {
+  const formatReward = useCallback((req: BountyRequest) => {
     const token = getTokenByAddress(chainId, req.token);
     if (!token) return `${formatUnits(req.reward, 18)} tokens`;
     return `${formatUnits(req.reward, token.decimals)} ${token.symbol}`;
-  };
+  }, [chainId]);
 
-  const truncateAddress = (addr: `0x${string}`) =>
-    `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  const truncateAddress = useCallback((addr: `0x${string}`) =>
+    `${addr.slice(0, 6)}...${addr.slice(-4)}`, []);
+
+  const requestCountText = useMemo(() =>
+    `${requests.length} pedido${requests.length !== 1 ? "s" : ""} abierto${requests.length !== 1 ? "s" : ""}`,
+  [requests.length]);
+
+  const requestsMap = useMemo(() => new Map(requests.map((r) => [r.id, r])), [requests]);
+
+  const mappedOffers = useMemo(
+    () => selectedOffers.map((o, i) => ({
+      ...o,
+      index: i,
+      fileName: fileInfo[i]?.fileName || "",
+      mimeType: fileInfo[i]?.mimeType || "",
+    })),
+    [selectedOffers, fileInfo]
+  );
+
+  const isSelectedRequestOwner = useMemo(() => {
+    if (selectedRequest === null) return false;
+    const req = requestsMap.get(selectedRequest);
+    return req?.requester === address;
+  }, [selectedRequest, requestsMap, address]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -238,14 +239,10 @@ export default function Home() {
                       <SheetTitle>Nuevo Pedido de Apunte</SheetTitle>
                     </SheetHeader>
                     <CreateRequestForm
-              formData={formData}
-              selectedToken={selectedToken}
-              tokens={tokens}
+              chainId={chainId}
               isWriting={isWriting}
               insufficientGas={insufficientGas}
-              onSubmit={handleSubmit}
-              onInputChange={handleInputChange}
-              onTokenChange={setSelectedToken}
+              onSubmit={handleFormSubmit}
             />
                   </SheetContent>
                 </Sheet>
@@ -262,14 +259,10 @@ export default function Home() {
                       <DialogTitle>Nuevo Pedido de Apunte</DialogTitle>
                     </DialogHeader>
                     <CreateRequestForm
-              formData={formData}
-              selectedToken={selectedToken}
-              tokens={tokens}
+              chainId={chainId}
               isWriting={isWriting}
               insufficientGas={insufficientGas}
-              onSubmit={handleSubmit}
-              onInputChange={handleInputChange}
-              onTokenChange={setSelectedToken}
+              onSubmit={handleFormSubmit}
             />
                   </DialogContent>
                 </Dialog>
@@ -290,13 +283,32 @@ export default function Home() {
                 Muro de Pedidos
               </h2>
               <span className="text-sm text-muted-foreground">
-                {requests.length} pedido{requests.length !== 1 ? "s" : ""} abierto{requests.length !== 1 ? "s" : ""}
+                {requestCountText}
               </span>
             </div>
 
             {loading ? (
-              <div className="flex justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Card key={i} className="flex flex-col justify-between">
+                    <CardHeader className="p-4 pb-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <Skeleton className="h-5 w-32" />
+                        <Skeleton className="h-4 w-10 shrink-0" />
+                      </div>
+                    </CardHeader>
+                    <CardContent className="px-4 pb-4 flex flex-col gap-2 flex-1">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <div className="flex items-center gap-2 mt-auto pt-2">
+                        <Skeleton className="h-5 w-20" />
+                        <Skeleton className="h-4 w-10" />
+                      </div>
+                      <Skeleton className="h-3 w-28" />
+                      <Skeleton className="h-9 w-full mt-2" />
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             ) : requests.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
@@ -304,60 +316,19 @@ export default function Home() {
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {requests.map((req) => {
-                  const token = getTokenByAddress(chainId, req.token);
-                  return (
-                    <Card key={req.id.toString()} className="flex flex-col justify-between">
-                      <CardHeader className="p-4 pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="text-base font-bold leading-tight">
-                            {req.title}
-                          </CardTitle>
-                          <Badge variant="success" className="shrink-0 text-[10px] px-1.5 py-0">
-                            Open
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="px-4 pb-4 flex flex-col gap-2 flex-1">
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {req.description}
-                        </p>
-                        <div className="flex items-center gap-2 mt-auto pt-2">
-                          <span className="font-mono font-bold text-primary text-sm">
-                            {formatReward(req)}
-                          </span>
-                          {token && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {token.symbol}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground font-mono">
-                          por {truncateAddress(req.requester)}
-                        </div>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="mt-2 w-full"
-                          onClick={() => handleOfferClick(req)}
-                          disabled={!isConnected}
-                        >
-                          Ofrecer mis Apuntes
-                        </Button>
-                        {address === req.requester && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="mt-1 w-full"
-                            onClick={() => handleViewOffers(req.id)}
-                          >
-                            Ver ofertas
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                {requests.map((req) => (
+                  <RequestCard
+                    key={req.id.toString()}
+                    req={req}
+                    token={getTokenByAddress(chainId, req.token)}
+                    formatReward={formatReward}
+                    truncateAddress={truncateAddress}
+                    isConnected={isConnected}
+                    isOwner={address === req.requester}
+                    onOfferClick={handleOfferClick}
+                    onViewOffers={handleViewOffers}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -381,6 +352,7 @@ export default function Home() {
             setSelectedOffers([]);
             setEncryptionKeys({});
             setFileInfo({});
+            clearIPFSCache();
           }
         }}
       >
@@ -389,22 +361,12 @@ export default function Home() {
             <DialogTitle>Ofertas recibidas</DialogTitle>
           </DialogHeader>
           <PendingOffers
-            offers={selectedOffers.map((o, i) => ({
-              ...o,
-              index: i,
-              fileName: fileInfo[i]?.fileName || "",
-              mimeType: fileInfo[i]?.mimeType || "",
-            }))}
+            offers={mappedOffers}
             bountyId={Number(selectedRequest)}
-            fileName=""
-            mimeType=""
             encryptionKeys={encryptionKeys}
-            isOwner={
-              address ===
-              requests.find((r) => r.id === selectedRequest)?.requester
-            }
+            isOwner={isSelectedRequestOwner}
             onAccept={handleAcceptOffer}
-            isAccepted={false}
+            onLoadOfferKey={handleLoadOfferKey}
           />
         </DialogContent>
       </Dialog>

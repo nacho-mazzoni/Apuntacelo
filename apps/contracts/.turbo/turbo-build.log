@@ -1,5 +1,6 @@
 
-> hardhat@1.0.0 build /home/nacho_mazzoni/Proyectos/celo/Apuntacelo/apps/contracts
+> hardhat@1.0.0 build C:\Celo\Apuntacelo\apps\contracts
 > hardhat compile
 
-Nothing to compile
+Downloading compiler 0.8.28
+Compiled 12 Solidity files successfully (evm target: paris).

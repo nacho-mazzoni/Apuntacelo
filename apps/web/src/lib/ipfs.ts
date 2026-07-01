@@ -49,10 +49,32 @@ export function getIPFSUrl(cid: string): string {
   return `${PINATA_GATEWAY}${cid}`;
 }
 
+const ipfsCache = new Map<string, Promise<ArrayBuffer>>();
+const IPFS_CACHE_MAX = 20;
+
 export async function downloadFromIPFS(cid: string): Promise<ArrayBuffer> {
-  const response = await fetch(getIPFSUrl(cid));
-  if (!response.ok) {
-    throw new Error(`Error descargando de IPFS: ${response.status}`);
+  const cached = ipfsCache.get(cid);
+  if (cached) {
+    ipfsCache.delete(cid);
+    ipfsCache.set(cid, cached);
+    return cached;
   }
-  return response.arrayBuffer();
+  const promise = (async () => {
+    const response = await fetch(getIPFSUrl(cid));
+    if (!response.ok) {
+      ipfsCache.delete(cid);
+      throw new Error(`Error descargando de IPFS: ${response.status}`);
+    }
+    return response.arrayBuffer();
+  })();
+  ipfsCache.set(cid, promise);
+  if (ipfsCache.size > IPFS_CACHE_MAX) {
+    const firstKey = ipfsCache.keys().next().value;
+    if (firstKey !== undefined) ipfsCache.delete(firstKey);
+  }
+  return promise;
+}
+
+export function clearIPFSCache() {
+  ipfsCache.clear();
 }

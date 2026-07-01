@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { Navbar } from "@/components/navbar";
 import { WalletProvider } from "@/components/wallet-provider";
+import { ToastProvider } from "@/components/ui/toast";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,8 +25,10 @@ export default function RootLayout({
         {/* Navbar is included on all pages */}
         <div className="relative flex min-h-screen flex-col">
           <WalletProvider>
+            <ToastProvider>
             <Navbar />
             <div className="flex-1">{children}</div>
+            </ToastProvider>
           </WalletProvider>
         </div>
       </body>

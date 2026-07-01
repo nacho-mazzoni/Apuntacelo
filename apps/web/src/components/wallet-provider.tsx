@@ -35,7 +35,14 @@ const wagmiConfig = createConfig({
   ssr: true,
 });
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function WalletProviderInner({ children }: { children: React.ReactNode }) {
   const { connect, connectors } = useConnect();

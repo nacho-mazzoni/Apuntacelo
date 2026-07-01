@@ -1,36 +1,68 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
+import { parseUnits } from "viem";
+import { getTokensForChain, getTokenByAddress } from "@/lib/tokens";
 import type { TokenInfo } from "@/lib/tokens";
 
 interface CreateRequestFormProps {
-  formData: { title: string; description: string; reward: string };
-  selectedToken: TokenInfo | null;
-  tokens: TokenInfo[];
+  chainId: number;
   isWriting: boolean;
   insufficientGas: boolean;
-  onSubmit: (e: React.FormEvent) => Promise<void>;
-  onInputChange: (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => void;
-  onTokenChange: (token: TokenInfo | null) => void;
+  onSubmit: (
+    title: string,
+    description: string,
+    tokenAddress: `0x${string}`,
+    amount: bigint
+  ) => Promise<void>;
 }
 
 export function CreateRequestForm({
-  formData,
-  selectedToken,
-  tokens,
+  chainId,
   isWriting,
   insufficientGas,
   onSubmit,
-  onInputChange,
-  onTokenChange,
 }: CreateRequestFormProps) {
+  const tokens = getTokensForChain(chainId);
+  const [selectedToken, setSelectedToken] = useState<TokenInfo | null>(null);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    reward: "",
+  });
+
+  useEffect(() => {
+    if (tokens.length > 0 && !selectedToken) {
+      setSelectedToken(tokens[0]);
+    }
+  }, [chainId, tokens, selectedToken]);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedToken) return;
+    const amount = parseUnits(formData.reward, selectedToken.decimals);
+    await onSubmit(
+      formData.title,
+      formData.description,
+      selectedToken.address as `0x${string}`,
+      amount
+    );
+    setFormData({ title: "", description: "", reward: "" });
+  };
+
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {insufficientGas && (
         <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
@@ -48,7 +80,7 @@ export function CreateRequestForm({
           name="title"
           required
           value={formData.title}
-          onChange={onInputChange}
+          onChange={handleInputChange}
           className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
@@ -59,7 +91,7 @@ export function CreateRequestForm({
           required
           rows={3}
           value={formData.description}
-          onChange={onInputChange}
+          onChange={handleInputChange}
           className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>
@@ -72,7 +104,7 @@ export function CreateRequestForm({
             const token = tokens.find(
               (t) => t.address === e.target.value
             );
-            onTokenChange(token || null);
+            setSelectedToken(token || null);
           }}
           className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
         >
@@ -94,7 +126,7 @@ export function CreateRequestForm({
           min="0"
           step="0.01"
           value={formData.reward}
-          onChange={onInputChange}
+          onChange={handleInputChange}
           className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"
         />
       </div>

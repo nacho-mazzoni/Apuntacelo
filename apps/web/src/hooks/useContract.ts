@@ -10,6 +10,7 @@ export function useContract() {
     address: CONTRACT_ADDRESS,
     abi: NOTES_MARKETPLACE_ABI,
     functionName: "getRequestCount",
+    query: { staleTime: 30_000 },
   });
 
   const { writeContractAsync, isPending: isWriting } = useWriteContract();
@@ -84,18 +85,12 @@ export function useContract() {
 
   const getRequests = async (): Promise<BountyRequest[]> => {
     const count = Number(requestCount || 0n);
-    const requests: BountyRequest[] = [];
-    for (let i = 1; i <= count; i++) {
-      try {
-        const req = await getRequest(BigInt(i));
-        if (req.status === 0) {
-          requests.push(req);
-        }
-      } catch {
-        break;
-      }
-    }
-    return requests;
+    if (count === 0) return [];
+    const promises = Array.from({ length: count }, (_, i) =>
+      getRequest(BigInt(i + 1)).catch(() => null)
+    );
+    const results = await Promise.all(promises);
+    return results.filter((r): r is BountyRequest => r !== null && r.status === 0);
   };
 
   const getOffers = async (requestId: bigint): Promise<Offer[]> => {
@@ -108,6 +103,10 @@ export function useContract() {
     return result as Offer[];
   };
 
+  const waitForTx = async (hash: `0x${string}`) => {
+    await publicClient!.waitForTransactionReceipt({ hash });
+  };
+
   return {
     requestCount,
     createRequest,
@@ -118,5 +117,6 @@ export function useContract() {
     getRequests,
     getOffers,
     isWriting,
+    waitForTx,
   };
 }

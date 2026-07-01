@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,26 +24,29 @@ interface PendingOffersProps {
     mimeType?: string;
   }>;
   bountyId: number;
-  fileName: string;
-  mimeType: string;
+  fileName?: string;
+  mimeType?: string;
   encryptionKeys: Record<string, string>;
   isOwner: boolean;
   onAccept: (offerIndex: number, rating: number) => Promise<void>;
-  isAccepted: boolean;
+  onLoadOfferKey?: (offerIndex: number, sellerAddress: `0x${string}`) => Promise<void>;
+  isAccepted?: boolean;
 }
 
-export function PendingOffers({
+export const PendingOffers = memo(function PendingOffers({
   offers,
   bountyId,
-  fileName,
-  mimeType,
+  fileName = "",
+  mimeType = "",
   encryptionKeys,
   isOwner,
   onAccept,
-  isAccepted,
+  onLoadOfferKey,
+  isAccepted = false,
 }: PendingOffersProps) {
   const isMobile = useIsMobile();
   const [selectedOffer, setSelectedOffer] = useState<number | null>(null);
+  const [loadingKey, setLoadingKey] = useState<number | null>(null);
   const [rating, setRating] = useState(5);
   const [showRating, setShowRating] = useState(false);
   const [accepting, setAccepting] = useState(false);
@@ -57,6 +60,24 @@ export function PendingOffers({
       </div>
     );
   }
+
+  const handlePreviewClick = async (offer: PendingOffersProps['offers'][0], showRatingAfter = false) => {
+    if (encryptionKeys[offer.index.toString()] || !onLoadOfferKey) {
+      setSelectedOffer(offer.index);
+      if (showRatingAfter) setShowRating(true);
+      return;
+    }
+    setLoadingKey(offer.index);
+    try {
+      await onLoadOfferKey(offer.index, offer.seller);
+      setSelectedOffer(offer.index);
+      if (showRatingAfter) setShowRating(true);
+    } catch {
+      // error toast already shown by parent
+    } finally {
+      setLoadingKey(null);
+    }
+  };
 
   const handleAccept = async () => {
     if (selectedOffer === null) return;
@@ -163,10 +184,15 @@ export function PendingOffers({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSelectedOffer(offer.index)}
+                  onClick={() => handlePreviewClick(offer)}
+                  disabled={loadingKey === offer.index}
                 >
-                  <Eye className="h-4 w-4 mr-1" />
-                  Ver oferta
+                  {loadingKey === offer.index ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Eye className="h-4 w-4 mr-1" />
+                  )}
+                  {loadingKey === offer.index ? "Cargando..." : "Ver oferta"}
                 </Button>
               )}
             </CardContent>
@@ -208,18 +234,21 @@ export function PendingOffers({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setSelectedOffer(offer.index)}
+                    onClick={() => handlePreviewClick(offer)}
+                    disabled={loadingKey === offer.index}
                   >
-                    <Eye className="h-4 w-4 mr-1" />
-                    Vista previa
+                    {loadingKey === offer.index ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Eye className="h-4 w-4 mr-1" />
+                    )}
+                    {loadingKey === offer.index ? "Cargando..." : "Vista previa"}
                   </Button>
                   {isOwner && !isAccepted && (
                     <Button
                       size="sm"
-                      onClick={() => {
-                        setSelectedOffer(offer.index);
-                        setShowRating(true);
-                      }}
+                      onClick={() => handlePreviewClick(offer, true)}
+                      disabled={loadingKey === offer.index}
                     >
                       Aceptar
                     </Button>
@@ -304,4 +333,4 @@ export function PendingOffers({
       )}
     </div>
   );
-}
+});
