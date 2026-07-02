@@ -17,6 +17,29 @@ export async function GET() {
   return NextResponse.json(data);
 }
 
+export async function PATCH(req: Request) {
+  const supabaseAdmin = getSupabaseAdmin();
+  const body = await req.json();
+  const { id, status } = body;
+
+  if (id === undefined || id === null || status === undefined || status === null) {
+    return NextResponse.json({ error: "Missing required fields: id, status" }, { status: 400 });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("requests")
+    .update({ status })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}
+
 export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   const body = await req.json();

@@ -3,6 +3,7 @@
 import { useReadContract, useWriteContract, usePublicClient, useAccount } from "wagmi";
 import { useCallback } from "react";
 import { parseUnits, erc20Abi } from "viem";
+import { celo } from "wagmi/chains";
 import { CONTRACT_ADDRESS, NOTES_MARKETPLACE_ABI } from "@/lib/contract";
 import type { BountyRequest, Offer } from "@/lib/contract";
 
@@ -14,6 +15,7 @@ export function useContract() {
     address: CONTRACT_ADDRESS,
     abi: NOTES_MARKETPLACE_ABI,
     functionName: "getRequestCount",
+    chainId: celo.id,
     query: { enabled: !!address },
   });
 
@@ -62,6 +64,19 @@ export function useContract() {
         abi: NOTES_MARKETPLACE_ABI,
         functionName: "acceptOffer",
         args: [requestId, offerIndex, rating],
+      });
+      await waitForTx(hash);
+    },
+    [writeContractAsync, waitForTx]
+  );
+
+  const cancelRequest = useCallback(
+    async (requestId: bigint) => {
+      const hash = await writeContractAsync({
+        address: CONTRACT_ADDRESS,
+        abi: NOTES_MARKETPLACE_ABI,
+        functionName: "cancelRequest",
+        args: [requestId],
       });
       await waitForTx(hash);
     },
@@ -160,6 +175,7 @@ export function useContract() {
     createRequest,
     offerNote,
     acceptOffer,
+    cancelRequest,
     approveToken,
     getRequest,
     getAllRequests,

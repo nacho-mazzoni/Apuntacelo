@@ -48,6 +48,12 @@ contract BountyBasedNotes {
         uint256 reward
     );
 
+    event RequestCancelled(
+        uint256 indexed requestId,
+        address indexed requester,
+        uint256 reward
+    );
+
     event ReputationUpdated(
         address indexed student,
         uint256 newAverage
@@ -107,6 +113,8 @@ contract BountyBasedNotes {
         Offer memory selectedOffer = offersByRequest[_requestId][_offerIndex];
         require(selectedOffer.seller != address(0), "Oferta invalida");
 
+        req.status = Status.Closed;
+
         if (req.token == address(0)) {
             (bool sent, ) = payable(selectedOffer.seller).call{value: req.reward}("");
             require(sent, "Transferencia de CELO fallida");
@@ -122,9 +130,25 @@ contract BountyBasedNotes {
 
         emit ReputationUpdated(selectedOffer.seller, newAverage);
 
+        emit OfferAccepted(_requestId, selectedOffer.seller, req.reward);
+    }
+
+    function cancelRequest(uint256 _requestId) external {
+        Request storage req = requests[_requestId];
+        require(req.id != 0, "Solicitud no existe");
+        require(req.status == Status.Open, "Solicitud ya cerrada");
+        require(msg.sender == req.requester, "Solo el solicitante puede cancelar");
+
         req.status = Status.Closed;
 
-        emit OfferAccepted(_requestId, selectedOffer.seller, req.reward);
+        if (req.token == address(0)) {
+            (bool sent, ) = payable(req.requester).call{value: req.reward}("");
+            require(sent, "Transferencia de CELO fallida");
+        } else {
+            IERC20(req.token).safeTransfer(req.requester, req.reward);
+        }
+
+        emit RequestCancelled(_requestId, req.requester, req.reward);
     }
 
     function getOffers(uint256 _requestId)

@@ -27,7 +27,7 @@ import { useXmtp } from "@/hooks/useXmtp";
 import { useXmtpStream } from "@/hooks/useXmtpStream";
 import { useContract } from "@/hooks/useContract";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
-import { celo, celoSepolia } from "wagmi/chains";
+import { celo } from "wagmi/chains";
 import { keccak256, toHex, parseUnits, formatUnits } from "viem";
 import { OfferSheet } from "@/components/offer/offer-sheet";
 import { OfferPreview } from "@/components/offer/offer-preview";
@@ -44,12 +44,13 @@ import type { RequestMetadata, OfferMetadata, AcceptedOfferInfo } from "@/lib/ap
 export default function Home() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { requestCount, refetchCount, createRequest, getAllRequests, getOffers, approveToken, offerNote, acceptOffer, getReputation, getCompletedTasks, isWriting } = useContract();
+  const { requestCount, refetchCount, createRequest, getAllRequests, getOffers, approveToken, offerNote, acceptOffer, cancelRequest, getReputation, getCompletedTasks, isWriting } = useContract();
   const { client, initializeXmtp } = useXmtp();
   const { newOffersCount, markAsSeen } = useXmtpStream(client);
   const isMobile = useIsMobile();
 
   const [showForm, setShowForm] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { data: celoBalance } = useBalance({ address, chainId, query: { enabled: showForm } });
   const insufficientGas = !!address && celoBalance !== undefined && celoBalance.value === 0n;
   const [requests, setRequests] = useState<BountyRequest[]>([]);
@@ -65,7 +66,7 @@ export default function Home() {
 
   const tokens = getTokensForChain(chainId);
 
-  const isWrongChain = isConnected && chainId !== celo.id && chainId !== celoSepolia.id;
+  const isWrongChain = isConnected && chainId !== celo.id;
 
   const [countTimedOut, setCountTimedOut] = useState(false);
 
@@ -82,11 +83,9 @@ export default function Home() {
 
   const chainName =
     chainId === celo.id ? "Celo Mainnet" :
-    chainId === celoSepolia.id ? "Celo Sepolia" :
     chainId ? `Chain ID: ${chainId}` : "Desconectado";
 
   const switchToCelo = () => switchChain({ chainId: celo.id });
-  const switchToSepolia = () => switchChain({ chainId: celoSepolia.id });
 
   useEffect(() => {
     if (tokens.length > 0 && !selectedToken) {
@@ -140,6 +139,8 @@ export default function Home() {
     e.preventDefault();
     if (!selectedToken || !address) return;
 
+    setSubmitError(null);
+
     try {
       if (!client) {
         await initializeXmtp();
@@ -161,21 +162,27 @@ export default function Home() {
         isCelo ? amount : undefined
       );
 
-      await saveRequestMetadata({
-        id: predictedId,
-        content_hash: contentHash,
-        requester: address,
-        title: formData.title,
-        description: formData.description,
-        reward: amount.toString(),
-        token: selectedToken.address,
-      });
+      try {
+        await saveRequestMetadata({
+          id: predictedId,
+          content_hash: contentHash,
+          requester: address,
+          title: formData.title,
+          description: formData.description,
+          reward: amount.toString(),
+          token: selectedToken.address,
+        });
+      } catch (metaErr) {
+        console.error("Error guardando metadata en Supabase:", metaErr);
+        setSubmitError("El pedido se creó on-chain pero no se pudo guardar la metadata. Reintentá en unos segundos.");
+      }
 
       setFormData({ title: "", description: "", reward: "" });
       setShowForm(false);
       await refetchCount();
     } catch (err) {
       console.error("Error creating request:", err);
+      setSubmitError("Error al crear el pedido. Revisá tu saldo y conexión.");
     }
   };
 
@@ -186,6 +193,7 @@ export default function Home() {
   const [encryptionKeys, setEncryptionKeys] = useState<Record<string, string>>({});
   const [fileInfo, setFileInfo] = useState<Record<string, { fileName: string; mimeType: string }>>({});
   const [isRequestAccepted, setIsRequestAccepted] = useState(false);
+  const [cancellingId, setCancellingId] = useState<bigint | null>(null);
   const [sellerReputations, setSellerReputations] = useState<
     Record<string, { reputation: number; completedTasks: number; average: number }>
   >({});
@@ -363,6 +371,30 @@ export default function Home() {
     }
   };
 
+  const handleCancelRequest = async (req: BountyRequest) => {
+    try {
+      await cancelRequest(req.id);
+
+      try {
+        await fetch("/api/requests", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: Number(req.id), status: 2 }),
+        });
+      } catch {
+        console.error("Error updating status in Supabase");
+      }
+
+      setCancellingId(null);
+      const data = await getAllRequestsRef.current();
+      setRequests(data);
+      refetchCount();
+    } catch (err) {
+      console.error("Error cancelling request:", err);
+      setCancellingId(null);
+    }
+  };
+
   const formatReward = (req: BountyRequest) => {
     const token = getTokenByAddress(chainId, req.token);
     if (!token) return `${formatUnits(req.reward, 18)} (token: ${req.token.slice(0, 6)}...${req.token.slice(-4)})`;
@@ -458,15 +490,12 @@ export default function Home() {
                 </div>
                 <h2 className="text-xl font-semibold mb-2">Red no soportada</h2>
                 <p className="text-muted-foreground mb-6 max-w-md">
-                  Apuntacelo funciona sobre Celo. Cambiá a una red compatible para empezar.
+                  El contrato de Apuntacelo está desplegado en <strong>Celo Mainnet</strong>. Cambiá a esta red para usar la app.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button onClick={switchToCelo} className="gap-2">
                     <Zap className="h-4 w-4" />
-                    Celo Mainnet
-                  </Button>
-                  <Button onClick={switchToSepolia} variant="outline" className="gap-2">
-                    Celo Sepolia (testnet)
+                    Cambiar a Celo Mainnet
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-4">
@@ -506,6 +535,13 @@ export default function Home() {
             </div>
           ) : (
             <div className="container px-4 max-w-7xl">
+            {submitError && (
+              <div className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive flex items-start gap-2">
+                <span className="font-medium">Error:</span>
+                <span className="flex-1">{submitError}</span>
+                <button onClick={() => setSubmitError(null)} className="text-destructive/70 hover:text-destructive font-bold">&times;</button>
+              </div>
+            )}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-semibold flex items-center gap-2">
                 <FileText className="h-6 w-6 text-primary" />
@@ -570,7 +606,7 @@ export default function Home() {
                           </Button>
                         )}
                         {address === req.requester && (
-                          <div className="relative mt-1 w-full">
+                          <div className="relative mt-1 w-full flex flex-col gap-2">
                             <Button
                               variant="outline"
                               size="sm"
@@ -579,6 +615,16 @@ export default function Home() {
                             >
                               Ver ofertas
                             </Button>
+                            {req.status === 0 && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => setCancellingId(req.id)}
+                              >
+                                Cancelar pedido
+                              </Button>
+                            )}
                             {newOffersCount[Number(req.id)] > 0 && (
                               <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center h-5 min-w-[20px] rounded-full bg-destructive text-destructive-foreground text-[11px] font-bold px-1">
                                 {newOffersCount[Number(req.id)]}
@@ -691,6 +737,36 @@ export default function Home() {
         xmtpClient={client}
         chainId={chainId}
       />
+
+      <Dialog
+        open={cancellingId !== null}
+        onOpenChange={(open) => !open && setCancellingId(null)}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Cancelar pedido</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">
+              Vas a cancelar este pedido y se te reembolsará la recompensa. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setCancellingId(null)}>
+                Volver
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  const req = requests.find((r) => r.id === cancellingId);
+                  if (req) handleCancelRequest(req);
+                }}
+              >
+                Confirmar cancelación
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={selectedRequest !== null}

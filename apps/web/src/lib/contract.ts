@@ -35,6 +35,15 @@ export const NOTES_MARKETPLACE_ABI = [
     type: "function",
   },
   {
+    inputs: [
+      { internalType: "uint256", name: "_requestId", type: "uint256" },
+    ],
+    name: "cancelRequest",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
     inputs: [{ internalType: "uint256", name: "_requestId", type: "uint256" }],
     name: "getRequest",
     outputs: [
@@ -107,6 +116,16 @@ export const NOTES_MARKETPLACE_ABI = [
       { indexed: false, internalType: "uint256", name: "reward", type: "uint256" },
     ],
     name: "OfferAccepted",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "uint256", name: "requestId", type: "uint256" },
+      { indexed: true, internalType: "address", name: "requester", type: "address" },
+      { indexed: false, internalType: "uint256", name: "reward", type: "uint256" },
+    ],
+    name: "RequestCancelled",
     type: "event",
   },
 ] as const;
