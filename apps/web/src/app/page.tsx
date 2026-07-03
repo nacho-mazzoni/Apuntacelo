@@ -26,7 +26,7 @@ import { IdentifierKind } from "@xmtp/browser-sdk";
 import { useXmtp } from "@/hooks/useXmtp";
 import { useXmtpStream } from "@/hooks/useXmtpStream";
 import { useContract } from "@/hooks/useContract";
-import { useAccount, useChainId, useSwitchChain } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, usePublicClient } from "wagmi";
 import { celo } from "wagmi/chains";
 import { keccak256, toHex, parseUnits, formatUnits } from "viem";
 import { OfferSheet } from "@/components/offer/offer-sheet";
@@ -37,6 +37,7 @@ import { CreateRequestForm } from "@/components/bounty/create-request-form";
 import { useBalance } from "wagmi";
 import { getTokensForChain, getTokenByAddress, NATIVE_CELO } from "@/lib/tokens";
 import type { TokenInfo } from "@/lib/tokens";
+import { CONTRACT_ADDRESS, NOTES_MARKETPLACE_ABI } from "@/lib/contract";
 import type { BountyRequest, Offer } from "@/lib/contract";
 import { fetchAllRequestsMetadata, saveRequestMetadata, fetchOffersMetadata, saveOfferMetadata, fetchRequestMetadata } from "@/lib/api";
 import type { RequestMetadata, OfferMetadata, AcceptedOfferInfo } from "@/lib/api";
@@ -46,6 +47,7 @@ export default function Home() {
   const chainId = useChainId();
   const { requestCount, refetchCount, createRequest, getAllRequests, getOffers, approveToken, offerNote, acceptOffer, cancelRequest, getReputation, getCompletedTasks, isWriting } = useContract();
   const { client, initializeXmtp } = useXmtp();
+  const publicClient = usePublicClient();
   const { newOffersCount, markAsSeen } = useXmtpStream(client);
   const isMobile = useIsMobile();
 
@@ -161,9 +163,13 @@ export default function Home() {
         isCelo ? amount : undefined
       );
 
-      // Refetch count after tx is confirmed to get the real request ID
-      const { data: newCount } = await refetchCount();
-      const realId = Number(newCount ?? requestCount ?? 0n);
+      // Read fresh count directly from contract, bypassing any RPC cache
+      const freshCount = await publicClient!.readContract({
+        address: CONTRACT_ADDRESS,
+        abi: NOTES_MARKETPLACE_ABI,
+        functionName: "getRequestCount",
+      });
+      const realId = Number(freshCount);
 
       try {
         await saveRequestMetadata({
