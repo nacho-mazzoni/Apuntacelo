@@ -26,7 +26,7 @@ import { IdentifierKind } from "@xmtp/browser-sdk";
 import { useXmtp } from "@/hooks/useXmtp";
 import { useXmtpStream } from "@/hooks/useXmtpStream";
 import { useContract } from "@/hooks/useContract";
-import { useAccount, useChainId, useSwitchChain, usePublicClient } from "wagmi";
+import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { celo } from "wagmi/chains";
 import { keccak256, toHex, parseUnits, formatUnits } from "viem";
 import { OfferSheet } from "@/components/offer/offer-sheet";
@@ -37,7 +37,6 @@ import { CreateRequestForm } from "@/components/bounty/create-request-form";
 import { useBalance } from "wagmi";
 import { getTokensForChain, getTokenByAddress, NATIVE_CELO } from "@/lib/tokens";
 import type { TokenInfo } from "@/lib/tokens";
-import { CONTRACT_ADDRESS, NOTES_MARKETPLACE_ABI } from "@/lib/contract";
 import type { BountyRequest, Offer } from "@/lib/contract";
 import { fetchAllRequestsMetadata, saveRequestMetadata, fetchOffersMetadata, saveOfferMetadata, fetchRequestMetadata } from "@/lib/api";
 import type { RequestMetadata, OfferMetadata, AcceptedOfferInfo } from "@/lib/api";
@@ -47,10 +46,10 @@ export default function Home() {
   const chainId = useChainId();
   const { requestCount, refetchCount, createRequest, getAllRequests, getOffers, approveToken, offerNote, acceptOffer, cancelRequest, getReputation, getCompletedTasks, isWriting } = useContract();
   const { client, initializeXmtp } = useXmtp();
-  const publicClient = usePublicClient();
   const { newOffersCount, markAsSeen } = useXmtpStream(client);
   const isMobile = useIsMobile();
 
+  const submitting = useRef(false);
   const [showForm, setShowForm] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { data: celoBalance } = useBalance({ address, chainId, query: { enabled: showForm } });
@@ -140,7 +139,8 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedToken || !address) return;
-
+    if (submitting.current) return;
+    submitting.current = true;
     setSubmitError(null);
 
     try {
@@ -163,17 +163,8 @@ export default function Home() {
         isCelo ? amount : undefined
       );
 
-      // Read fresh count directly from contract, bypassing any RPC cache
-      const freshCount = await publicClient!.readContract({
-        address: CONTRACT_ADDRESS,
-        abi: NOTES_MARKETPLACE_ABI,
-        functionName: "getRequestCount",
-      });
-      const realId = Number(freshCount);
-
       try {
         await saveRequestMetadata({
-          id: realId,
           content_hash: contentHash,
           requester: address,
           title: formData.title,
@@ -191,6 +182,8 @@ export default function Home() {
     } catch (err) {
       console.error("Error creating request:", err);
       setSubmitError("Error al crear el pedido. Revisá tu saldo y conexión.");
+    } finally {
+      submitting.current = false;
     }
   };
 
@@ -387,7 +380,7 @@ export default function Home() {
         await fetch("/api/requests", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: Number(req.id), status: 2 }),
+          body: JSON.stringify({ content_hash: req.contentHash, requester: address, status: 2 }),
         });
       } catch {
         console.error("Error updating status in Supabase");

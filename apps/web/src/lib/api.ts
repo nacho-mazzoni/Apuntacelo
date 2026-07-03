@@ -1,5 +1,5 @@
 export interface RequestMetadata {
-  id: number;
+  id?: number;
   content_hash: string;
   requester: string;
   title: string;
@@ -51,7 +51,6 @@ export async function fetchAllRequestsMetadata(): Promise<RequestMetadata[]> {
 }
 
 export async function saveRequestMetadata(data: {
-  id: number;
   content_hash: string;
   requester: string;
   title: string;

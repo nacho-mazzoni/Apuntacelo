@@ -20,16 +20,17 @@ export async function GET() {
 export async function PATCH(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   const body = await req.json();
-  const { id, status } = body;
+  const { content_hash, requester, status } = body;
 
-  if (id === undefined || id === null || status === undefined || status === null) {
-    return NextResponse.json({ error: "Missing required fields: id, status" }, { status: 400 });
+  if (!content_hash || !requester || status === undefined || status === null) {
+    return NextResponse.json({ error: "Missing required fields: content_hash, requester, status" }, { status: 400 });
   }
 
   const { data, error } = await supabaseAdmin
     .from("requests")
     .update({ status })
-    .eq("id", id)
+    .eq("content_hash", content_hash)
+    .eq("requester", requester)
     .select()
     .single();
 
@@ -43,16 +44,15 @@ export async function PATCH(req: Request) {
 export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
   const body = await req.json();
-  const { id, content_hash, requester, title, description, reward, token } = body;
+  const { content_hash, requester, title, description, reward, token } = body;
 
-  if (!id || !content_hash || !requester || !title || !reward || !token) {
+  if (!content_hash || !requester || !title || !reward || !token) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
   const { data, error } = await supabaseAdmin
     .from("requests")
     .insert({
-      id,
       content_hash,
       requester,
       title,
