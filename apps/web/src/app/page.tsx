@@ -149,7 +149,6 @@ export default function Home() {
       const amount = parseUnits(formData.reward, selectedToken.decimals);
       const isCelo = selectedToken.address === NATIVE_CELO.address;
       const contentHash = computeContentHash(formData.title, formData.description);
-      const predictedId = Number(requestCount || 0n) + 1;
 
       if (!isCelo) {
         await approveToken(selectedToken.address as `0x${string}`, amount);
@@ -162,9 +161,13 @@ export default function Home() {
         isCelo ? amount : undefined
       );
 
+      // Refetch count after tx is confirmed to get the real request ID
+      const { data: newCount } = await refetchCount();
+      const realId = Number(newCount ?? requestCount ?? 0n);
+
       try {
         await saveRequestMetadata({
-          id: predictedId,
+          id: realId,
           content_hash: contentHash,
           requester: address,
           title: formData.title,
@@ -179,7 +182,6 @@ export default function Home() {
 
       setFormData({ title: "", description: "", reward: "" });
       setShowForm(false);
-      await refetchCount();
     } catch (err) {
       console.error("Error creating request:", err);
       setSubmitError("Error al crear el pedido. Revisá tu saldo y conexión.");
