@@ -21,7 +21,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { Zap, Upload, FileText, Loader2, Plus, CheckCircle2 } from "lucide-react";
+import { Zap, FileText, Loader2, Plus, CheckCircle2 } from "lucide-react";
 import { IdentifierKind } from "@xmtp/browser-sdk";
 import { useXmtp } from "@/hooks/useXmtp";
 import { useXmtpStream } from "@/hooks/useXmtpStream";
@@ -213,16 +213,6 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("acceptedOffers", JSON.stringify(acceptedOffers));
   }, [acceptedOffers]);
-
-  const onRequestNotes = async () => {
-    try {
-      if (!client) {
-        await initializeXmtp();
-      }
-    } catch (err) {
-      console.error("No se pudo inicializar XMTP:", err);
-    }
-  };
 
   const handleOfferClick = async (req: BountyRequest) => {
     if (!client) {
@@ -475,10 +465,6 @@ export default function Home() {
                   </DialogContent>
                 </Dialog>
               )}
-              <Button variant="outline" className="gap-2" onClick={onRequestNotes}>
-                <Upload className="h-4 w-4" />
-                Pedir Apunte
-              </Button>
             </div>
           </div>
         </section>
