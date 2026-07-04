@@ -132,8 +132,8 @@ export default function Home() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const computeContentHash = (title: string, description: string): `0x${string}` => {
-    return keccak256(toHex(JSON.stringify({ title, description })));
+  const computeContentHash = (title: string, description: string, requester: string, timestamp: number): `0x${string}` => {
+    return keccak256(toHex(JSON.stringify({ title, description, requester, timestamp })));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,7 +150,8 @@ export default function Home() {
 
       const amount = parseUnits(formData.reward, selectedToken.decimals);
       const isCelo = selectedToken.address === NATIVE_CELO.address;
-      const contentHash = computeContentHash(formData.title, formData.description);
+      const timestamp = Math.floor(Date.now() / 1000);
+      const contentHash = computeContentHash(formData.title, formData.description, address, timestamp);
 
       if (!isCelo) {
         await approveToken(selectedToken.address as `0x${string}`, amount);
