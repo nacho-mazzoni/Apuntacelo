@@ -21,7 +21,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { Zap, FileText, Loader2, Plus, CheckCircle2 } from "lucide-react";
+import { Zap, FileText, Loader2, Plus, CheckCircle2, X } from "lucide-react";
 import { IdentifierKind } from "@xmtp/browser-sdk";
 import { useXmtp } from "@/hooks/useXmtp";
 import { useXmtpStream } from "@/hooks/useXmtpStream";
@@ -202,6 +202,7 @@ export default function Home() {
 
   const [acceptedOffers, setAcceptedOffers] = useState<Record<number, AcceptedOfferInfo>>({});
   const [downloadRequestId, setDownloadRequestId] = useState<number | null>(null);
+  const [hiddenClosedIds, setHiddenClosedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     try {
@@ -213,6 +214,17 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("acceptedOffers", JSON.stringify(acceptedOffers));
   }, [acceptedOffers]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("hiddenClosedIds");
+      if (stored) setHiddenClosedIds(new Set(JSON.parse(stored)));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("hiddenClosedIds", JSON.stringify([...hiddenClosedIds]));
+  }, [hiddenClosedIds]);
 
   const handleOfferClick = async (req: BountyRequest) => {
     if (!client) {
@@ -397,7 +409,7 @@ export default function Home() {
     `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
   const openRequests = requests.filter(r => r.status === 0);
-  const closedRequests = requests.filter(r => r.status !== 0 && r.requester.toLowerCase() === address?.toLowerCase());
+  const closedRequests = requests.filter(r => r.status !== 0 && r.requester.toLowerCase() === address?.toLowerCase() && !hiddenClosedIds.has(r.id.toString()));
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -646,7 +658,18 @@ export default function Home() {
                     const token = getTokenByAddress(chainId, req.token);
                     return (
                       <Card key={req.id.toString()} className="flex flex-col justify-between">
-                        <CardHeader className="p-4 pb-2">
+                        <CardHeader className="relative p-4 pb-2">
+                          <button
+                            onClick={() => setHiddenClosedIds(prev => {
+                              const next = new Set(prev);
+                              next.add(req.id.toString());
+                              return next;
+                            })}
+                            className="absolute top-1 right-1 p-1 rounded-full text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted transition-colors"
+                            title="Ocultar"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
                           <div className="flex items-start justify-between gap-2">
                             <CardTitle className="text-base font-bold leading-tight">
                               {metum?.title || `Request #${req.id.toString()}`}
