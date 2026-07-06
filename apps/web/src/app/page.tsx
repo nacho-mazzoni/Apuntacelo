@@ -397,7 +397,7 @@ export default function Home() {
     `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
   const openRequests = requests.filter(r => r.status === 0);
-  const closedRequests = requests.filter(r => r.status !== 0);
+  const closedRequests = requests.filter(r => r.status !== 0 && r.requester.toLowerCase() === address?.toLowerCase());
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
