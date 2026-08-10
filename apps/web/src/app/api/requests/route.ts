@@ -1,47 +1,46 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
-    .from("requests")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const rows = await db`select * from requests order by created_at desc`;
+    return NextResponse.json(rows);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Database error" },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json(data);
 }
 
 export async function PATCH(req: Request) {
-  const supabaseAdmin = getSupabaseAdmin();
   const body = await req.json();
   const { id, status } = body;
 
   if (id === undefined || id === null || status === undefined || status === null) {
-    return NextResponse.json({ error: "Missing required fields: id, status" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing required fields: id, status" },
+      { status: 400 },
+    );
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("requests")
-    .update({ status })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const rows = await db`update requests set status = ${status} where id = ${id} returning *`;
+    if (rows.length === 0) {
+      return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
+    return NextResponse.json(rows[0]);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Database error" },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json(data);
 }
 
 export async function POST(req: Request) {
-  const supabaseAdmin = getSupabaseAdmin();
   const body = await req.json();
   const { id, content_hash, requester, title, description, reward, token } = body;
 
@@ -49,24 +48,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("requests")
-    .insert({
-      id,
-      content_hash,
-      requester,
-      title,
-      description: description || "",
-      reward,
-      token,
-      status: 0,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const rows = await db`
+      insert into requests (id, content_hash, requester, title, description, reward, token, status)
+      values (${id}, ${content_hash}, ${requester}, ${title}, ${description ?? ""}, ${reward}, ${token}, 0)
+      returning *
+    `;
+    return NextResponse.json(rows[0]);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Database error" },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json(data);
 }

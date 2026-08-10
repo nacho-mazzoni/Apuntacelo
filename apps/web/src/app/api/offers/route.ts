@@ -1,33 +1,27 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const supabaseAdmin = getSupabaseAdmin();
   const { searchParams } = new URL(req.url);
   const requestId = searchParams.get("request_id");
 
-  let query = supabaseAdmin
-    .from("offers")
-    .select("*")
-    .order("created_at", { ascending: true });
-
-  if (requestId) {
-    query = query.eq("request_id", Number(requestId));
+  try {
+    const rows =
+      requestId != null && requestId !== ""
+        ? await db`select * from offers where request_id = ${Number(requestId)} order by created_at asc`
+        : await db`select * from offers order by created_at asc`;
+    return NextResponse.json(rows);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Database error" },
+      { status: 500 },
+    );
   }
-
-  const { data, error } = await query;
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json(data);
 }
 
 export async function POST(req: Request) {
-  const supabaseAdmin = getSupabaseAdmin();
   const body = await req.json();
   const { request_id, seller, ipfs_cid, encrypted_key, file_name, file_type } = body;
 
@@ -35,22 +29,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("offers")
-    .insert({
-      request_id,
-      seller,
-      ipfs_cid,
-      encrypted_key,
-      file_name,
-      file_type,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const rows = await db`
+      insert into offers (request_id, seller, ipfs_cid, encrypted_key, file_name, file_type)
+      values (${request_id}, ${seller}, ${ipfs_cid}, ${encrypted_key}, ${file_name}, ${file_type})
+      returning *
+    `;
+    return NextResponse.json(rows[0]);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Database error" },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json(data);
 }
