@@ -6,7 +6,7 @@
 
 | Condición | Código | Mensaje | Acción UX |
 |-----------|--------|---------|-----------|
-| Token no soportado | `ERR_TOKEN_NOT_SUPPORTED` | Token no soportado. Usá cUSD, USDC o USDT | Deshabilitar tokens en dropdown |
+| Token no soportado | `ERR_TOKEN_NOT_SUPPORTED` | Token no soportado. Usá cUSD/USDm, USDC o USDT | Deshabilitar tokens en dropdown y validar en el contrato |
 | Amount > balance | `ERR_INSUFFICIENT_BALANCE` | Saldo insuficiente del token | Mostrar balance actual, bloquear submit |
 | Request no existe | `ERR_REQUEST_NOT_FOUND` | El pedido no existe | Recargar muro |
 | Request no abierto | `ERR_REQUEST_CLOSED` | Este pedido ya fue cerrado | Ocultar botón de ofertar |

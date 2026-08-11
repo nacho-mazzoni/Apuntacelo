@@ -7,6 +7,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 contract BountyBasedNotes {
     using SafeERC20 for IERC20;
 
+    mapping(address => bool) public supportedTokens;
+
     enum Status { Open, Closed }
 
     struct Request {
@@ -28,6 +30,13 @@ contract BountyBasedNotes {
 
     mapping(address => uint256) public reputation;
     mapping(address => uint256) public completedTasks;
+
+    constructor(address[] memory _supportedTokens) {
+        for (uint256 i = 0; i < _supportedTokens.length; i++) {
+            require(_supportedTokens[i] != address(0), "Token invalido");
+            supportedTokens[_supportedTokens[i]] = true;
+        }
+    }
 
     event RequestCreated(
         uint256 indexed requestId,
@@ -63,14 +72,11 @@ contract BountyBasedNotes {
         bytes32 _contentHash,
         address _token,
         uint256 _amount
-    ) external payable {
+    ) external {
         require(_amount > 0, "La recompensa debe ser mayor a 0");
+        require(supportedTokens[_token], "Token no soportado");
 
-        if (_token == address(0)) {
-            require(msg.value == _amount, "Monto de CELO incorrecto");
-        } else {
-            IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
-        }
+        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
 
         uint256 requestId = _nextRequestId;
         requests[requestId] = Request({
@@ -115,12 +121,7 @@ contract BountyBasedNotes {
 
         req.status = Status.Closed;
 
-        if (req.token == address(0)) {
-            (bool sent, ) = payable(selectedOffer.seller).call{value: req.reward}("");
-            require(sent, "Transferencia de CELO fallida");
-        } else {
-            IERC20(req.token).safeTransfer(selectedOffer.seller, req.reward);
-        }
+        IERC20(req.token).safeTransfer(selectedOffer.seller, req.reward);
 
         reputation[selectedOffer.seller] += rating;
         completedTasks[selectedOffer.seller] += 1;
@@ -141,12 +142,7 @@ contract BountyBasedNotes {
 
         req.status = Status.Closed;
 
-        if (req.token == address(0)) {
-            (bool sent, ) = payable(req.requester).call{value: req.reward}("");
-            require(sent, "Transferencia de CELO fallida");
-        } else {
-            IERC20(req.token).safeTransfer(req.requester, req.reward);
-        }
+        IERC20(req.token).safeTransfer(req.requester, req.reward);
 
         emit RequestCancelled(_requestId, req.requester, req.reward);
     }

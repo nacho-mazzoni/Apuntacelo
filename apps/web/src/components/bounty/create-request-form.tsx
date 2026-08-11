@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { AlertTriangle } from "lucide-react";
 import type { TokenInfo } from "@/lib/tokens";
+import { getAmountStep } from "@/lib/tokens";
 
 interface CreateRequestFormProps {
   formData: { title: string; description: string; reward: string };
@@ -98,8 +99,8 @@ export function CreateRequestForm({
           type="number"
           name="reward"
           required
-          min="0"
-          step="0.01"
+           min="0"
+           step={selectedToken ? getAmountStep(selectedToken.decimals) : "0.01"}
           value={formData.reward}
           onChange={onInputChange}
           className="border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-primary"

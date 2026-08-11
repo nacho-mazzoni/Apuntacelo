@@ -5,13 +5,27 @@ export const CONTRACT_ADDRESS =
 export const NOTES_MARKETPLACE_ABI = [
   {
     inputs: [
+      { internalType: "address[]", name: "_supportedTokens", type: "address[]" },
+    ],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+  {
+    inputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "supportedTokens",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
       { internalType: "bytes32", name: "_contentHash", type: "bytes32" },
       { internalType: "address", name: "_token", type: "address" },
       { internalType: "uint256", name: "_amount", type: "uint256" },
     ],
     name: "createRequest",
     outputs: [],
-    stateMutability: "payable",
+    stateMutability: "nonpayable",
     type: "function",
   },
   {

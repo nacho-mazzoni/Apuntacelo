@@ -10,7 +10,7 @@
 | `requester` | `address` | Dirección del creador | — |
 | `title` | `string` | Título del pedido | ≤ 100 chars |
 | `description` | `string` | Descripción detallada | ≤ 500 chars |
-| `token` | `address` | Dirección del token ERC-20 | cUSD / USDC / USDT únicamente |
+| `token` | `address` | Dirección del token ERC-20 | cUSD/USDm, USDC o USDT únicamente |
 | `amount` | `uint256` | Monto de recompensa | > 0, en decimals del token |
 | `status` | `Status` | Estado del pedido | Open(0) / Fulfilled(1) / Cancelled(2) |
 | `createdAt` | `uint256` | Timestamp UNIX | block.timestamp |
@@ -61,3 +61,7 @@ Offer            ──1:1──▶ IPFS File (via ipfsCID)
 ## Tipos compartidos (TypeScript)
 
 Ver `packages/shared-types/src/` para las definiciones de tipos que deben coincidir 1:1 con este modelo.
+
+### Tokens soportados
+
+`USD` es una unidad fiat de referencia y no un activo que se pueda depositar en el contrato. Los pagos se realizan en el token ERC-20 seleccionado. En Celo, cUSD corresponde a USDm y usa 18 decimales; USDC y USDT usan 6 decimales.

@@ -47,7 +47,7 @@ page.tsx (Home)
 - **Props:**
   - `onSubmit: (title, description, token, amount) => Promise<void>`
   - `onSuccess: () => void`
-  - `tokens: TokenInfo[]`
+  - `tokens: TokenInfo[]` — únicamente cUSD/USDm, USDC y USDT para la red activa
   - `insufficientGas: boolean`
 - **Estados:** idle, approving, submitting, success, error
 

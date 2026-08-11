@@ -31,13 +31,12 @@ export function useContract() {
   );
 
   const createRequest = useCallback(
-    async (contentHash: `0x${string}`, tokenAddress: `0x${string}`, amount: bigint, value?: bigint) => {
+    async (contentHash: `0x${string}`, tokenAddress: `0x${string}`, amount: bigint) => {
       const hash = await writeContractAsync({
         address: CONTRACT_ADDRESS,
         abi: NOTES_MARKETPLACE_ABI,
         functionName: "createRequest",
         args: [contentHash, tokenAddress, amount],
-        value,
       });
       await waitForTx(hash);
     },

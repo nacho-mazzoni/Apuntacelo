@@ -1,4 +1,4 @@
-export type TokenSymbol = "cUSD" | "USDC" | "USDT";
+export type TokenSymbol = "cUSD" | "USDm" | "USDC" | "USDT";
 
 export interface TokenInfo {
   address: `0x${string}`;

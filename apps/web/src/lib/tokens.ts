@@ -1,4 +1,5 @@
 import { celo, celoSepolia } from "wagmi/chains";
+import { parseUnits } from "viem";
 
 export interface TokenInfo {
   address: `0x${string}`;
@@ -6,6 +7,22 @@ export interface TokenInfo {
   name: string;
   decimals: number;
   icon?: string;
+}
+
+export function getAmountStep(decimals: number): string {
+  return `0.${"0".repeat(Math.max(decimals - 1, 0))}1`;
+}
+
+export function parseTokenAmount(value: string, decimals: number): bigint {
+  const trimmed = value.trim();
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) {
+    throw new Error("El monto no es válido");
+  }
+  const fraction = trimmed.split(".")[1] || "";
+  if (fraction.length > decimals) {
+    throw new Error(`El monto admite como máximo ${decimals} decimales`);
+  }
+  return parseUnits(trimmed, decimals);
 }
 
 export const NATIVE_CELO: TokenInfo = {
@@ -17,7 +34,6 @@ export const NATIVE_CELO: TokenInfo = {
 
 export const TOKENS: Record<number, TokenInfo[]> = {
   [celo.id]: [
-    NATIVE_CELO,
     {
       address: "0x765de816845861e75a25fca122bb6898b8b1282a",
       symbol: "cUSD",
@@ -38,7 +54,6 @@ export const TOKENS: Record<number, TokenInfo[]> = {
     },
   ],
   [celoSepolia.id]: [
-    NATIVE_CELO,
     {
       address: "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1",
       symbol: "cUSD",
@@ -49,6 +64,12 @@ export const TOKENS: Record<number, TokenInfo[]> = {
       address: "0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B",
       symbol: "USDC",
       name: "USD Coin",
+      decimals: 6,
+    },
+    {
+      address: "0xd077A400968890Eacc75cdc901F0356c943e4fDb",
+      symbol: "USDT",
+      name: "Tether USD",
       decimals: 6,
     },
   ],

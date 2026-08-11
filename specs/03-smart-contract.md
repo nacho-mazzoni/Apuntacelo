@@ -14,13 +14,13 @@ uint256 public requestCount;
 
 ### Functions
 
-#### `createRequest(string title, string description, address token, uint256 amount)`
+#### `createRequest(bytes32 contentHash, address token, uint256 amount)`
 
 | | |
 |---|---|
 | **Quién** | Cualquier address |
-| **Pre-conditions** | `msg.sender` tiene `≥ amount` de `token`; `token` está en `supportedTokens`; `amount > 0` |
-| **Post-conditions** | `requests.push(BountyRequest(...))`; `requestCount++`; `token` transferido al contrato via `safeTransferFrom`; `RequestCreated` emitido |
+| **Pre-conditions** | `msg.sender` tiene `≥ amount` de `token`; `token` está en `supportedTokens`; `amount > 0`; no se envía CELO nativo |
+| **Post-conditions** | `requests[requestId]` se crea; `requestCount++`; `token` transferido al contrato via `safeTransferFrom`; `RequestCreated` emitido |
 | **Invariant** | `IERC20(token).balanceOf(this) == sum(amount) for all requests where status == Open` |
 
 #### `offerNote(uint256 requestId, string ipfsCID)`
@@ -58,6 +58,11 @@ uint256 public requestCount;
 ### Security
 
 - Uso de OpenZeppelin `SafeERC20` para todos los transfers
+- Whitelist de tokens inicializada en el constructor
 - Uso de OpenZeppelin `ReentrancyGuard` en funciones que transfieren tokens
 - No hay funciones de withdraw — los tokens siempre van a un seller al aceptar
 - No hay owner/admin — el contrato es inmutable y sin roles
+
+### Tokens soportados
+
+La whitelist inicial incluye cUSD/USDm, USDC y USDT. `USD` no es un token on-chain y no se acepta como dirección de pago.

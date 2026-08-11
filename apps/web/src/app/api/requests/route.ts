@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isAddress } from "viem";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,10 @@ export async function POST(req: Request) {
 
   if (!content_hash || !requester || !title || !reward || !token) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  if (!isAddress(requester) || !isAddress(token) || !/^\d+$/.test(String(reward)) || BigInt(reward) <= 0n) {
+    return NextResponse.json({ error: "Invalid requester, token, or reward" }, { status: 400 });
   }
 
   try {

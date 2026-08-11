@@ -28,14 +28,14 @@ import { useXmtpStream } from "@/hooks/useXmtpStream";
 import { useContract } from "@/hooks/useContract";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { celo } from "wagmi/chains";
-import { keccak256, toHex, parseUnits, formatUnits } from "viem";
+import { keccak256, toHex, formatUnits } from "viem";
 import { OfferSheet } from "@/components/offer/offer-sheet";
 import { OfferPreview } from "@/components/offer/offer-preview";
 import { PendingOffers } from "@/components/offer/pending-offers";
 import { ConnectGate } from "@/components/shared/connect-gate";
 import { CreateRequestForm } from "@/components/bounty/create-request-form";
 import { useBalance } from "wagmi";
-import { getTokensForChain, getTokenByAddress, NATIVE_CELO } from "@/lib/tokens";
+import { getTokensForChain, getTokenByAddress, parseTokenAmount } from "@/lib/tokens";
 import type { TokenInfo } from "@/lib/tokens";
 import type { BountyRequest, Offer } from "@/lib/contract";
 import { fetchAllRequestsMetadata, saveRequestMetadata, fetchOffersMetadata, saveOfferMetadata, fetchRequestMetadata } from "@/lib/api";
@@ -148,20 +148,16 @@ export default function Home() {
         await initializeXmtp();
       }
 
-      const amount = parseUnits(formData.reward, selectedToken.decimals);
-      const isCelo = selectedToken.address === NATIVE_CELO.address;
+      const amount = parseTokenAmount(formData.reward, selectedToken.decimals);
       const timestamp = Math.floor(Date.now() / 1000);
       const contentHash = computeContentHash(formData.title, formData.description, address, timestamp);
 
-      if (!isCelo) {
-        await approveToken(selectedToken.address as `0x${string}`, amount);
-      }
+      await approveToken(selectedToken.address as `0x${string}`, amount);
 
       await createRequest(
         contentHash,
         selectedToken.address as `0x${string}`,
-        amount,
-        isCelo ? amount : undefined
+        amount
       );
 
       try {

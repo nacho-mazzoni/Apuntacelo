@@ -10,10 +10,8 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Wallet, ChevronDown } from "lucide-react";
-
-const cUSD_ADDRESS = "0x765de816845861e75a25fca122bb6898b8b1282a";
-const USDC_ADDRESS = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C";
-const USDT_ADDRESS = "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e";
+import { getTokensForChain } from "@/lib/tokens";
+import { useChainId } from "wagmi";
 
 function BalanceDisplay({ address, token, symbol }: { address: `0x${string}`, token?: `0x${string}`, symbol: string }) {
   const { data, isLoading } = useBalance({
@@ -36,6 +34,8 @@ function truncateAddress(addr: string) {
 }
 
 function WalletPopover({ address }: { address: `0x${string}` }) {
+  const chainId = useChainId();
+  const tokens = getTokensForChain(chainId);
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -60,9 +60,9 @@ function WalletPopover({ address }: { address: `0x${string}` }) {
             </p>
           </div>
           <div className="space-y-1.5 pt-2 border-t">
-            <BalanceDisplay address={address} token={cUSD_ADDRESS} symbol="cUSD" />
-            <BalanceDisplay address={address} token={USDC_ADDRESS} symbol="USDC" />
-            <BalanceDisplay address={address} token={USDT_ADDRESS} symbol="USDT" />
+             {tokens.map((token) => (
+               <BalanceDisplay key={token.address} address={address} token={token.address} symbol={token.symbol} />
+             ))}
           </div>
         </div>
       </PopoverContent>
@@ -73,6 +73,8 @@ function WalletPopover({ address }: { address: `0x${string}` }) {
 export function UserBalance() {
   const { address, isConnected } = useAccount();
   const isMobile = useIsMobile();
+  const chainId = useChainId();
+  const tokens = getTokensForChain(chainId);
 
   if (!isConnected || !address) {
     return null;
@@ -89,9 +91,9 @@ export function UserBalance() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2 pt-2 border-t">
-            <BalanceDisplay address={address} token={cUSD_ADDRESS} symbol="cUSD" />
-            <BalanceDisplay address={address} token={USDC_ADDRESS} symbol="USDC" />
-            <BalanceDisplay address={address} token={USDT_ADDRESS} symbol="USDT" />
+             {tokens.map((token) => (
+               <BalanceDisplay key={token.address} address={address} token={token.address} symbol={token.symbol} />
+             ))}
           </div>
         </CardContent>
       </Card>
