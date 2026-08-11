@@ -3,7 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 
 import { Navbar } from "@/components/shared/navbar";
-import { WalletProvider } from "@/components/shared/wallet-provider";
+import { WalletProviderClient } from "@/components/shared/wallet-provider-client";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,10 +23,10 @@ export default function RootLayout({
       <body className={inter.className}>
         {/* Navbar is included on all pages */}
         <div className="relative flex min-h-screen flex-col">
-          <WalletProvider>
+          <WalletProviderClient>
             <Navbar />
             <div className="flex-1">{children}</div>
-          </WalletProvider>
+          </WalletProviderClient>
         </div>
       </body>
     </html>
