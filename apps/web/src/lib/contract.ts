@@ -2,6 +2,8 @@ export const CONTRACT_ADDRESS =
   (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`) ||
   "0x737844DC6EE92083Ec634941A934B402c0d18416";
 
+export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 42220);
+
 export const NOTES_MARKETPLACE_ABI = [
   {
     inputs: [

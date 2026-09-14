@@ -3,8 +3,7 @@
 import { useReadContract, useWriteContract, usePublicClient, useAccount } from "wagmi";
 import { useCallback } from "react";
 import { parseUnits, erc20Abi } from "viem";
-import { celo } from "wagmi/chains";
-import { CONTRACT_ADDRESS, NOTES_MARKETPLACE_ABI } from "@/lib/contract";
+import { CONTRACT_ADDRESS, NOTES_MARKETPLACE_ABI, CHAIN_ID } from "@/lib/contract";
 import type { BountyRequest, Offer } from "@/lib/contract";
 
 export const ERC20_ABI = erc20Abi;
@@ -15,7 +14,7 @@ export function useContract() {
     address: CONTRACT_ADDRESS,
     abi: NOTES_MARKETPLACE_ABI,
     functionName: "getRequestCount",
-    chainId: celo.id,
+    chainId: CHAIN_ID,
     query: { enabled: !!address },
   });
 

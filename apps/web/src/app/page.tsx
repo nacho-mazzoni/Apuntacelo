@@ -38,9 +38,11 @@ import { useBalance } from "wagmi";
 import { getTokensForChain, getTokenByAddress, parseTokenAmount } from "@/lib/tokens";
 import type { TokenInfo } from "@/lib/tokens";
 import type { BountyRequest, Offer } from "@/lib/contract";
+import { CHAIN_ID } from "@/lib/contract";
 import { fetchAllRequestsMetadata, saveRequestMetadata, fetchOffersMetadata, saveOfferMetadata, fetchRequestMetadata } from "@/lib/api";
 import type { RequestMetadata, OfferMetadata, AcceptedOfferInfo } from "@/lib/api";
 
+const TARGET_CHAIN_NAME = CHAIN_ID === 42220 ? "Celo Mainnet" : "Celo Sepolia";
 export default function Home() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
@@ -67,7 +69,7 @@ export default function Home() {
 
   const tokens = getTokensForChain(chainId);
 
-  const isWrongChain = isConnected && chainId !== celo.id;
+  const isWrongChain = isConnected && chainId !== CHAIN_ID;
 
   const [countTimedOut, setCountTimedOut] = useState(false);
 
@@ -83,10 +85,10 @@ export default function Home() {
   const { switchChain } = useSwitchChain();
 
   const chainName =
-    chainId === celo.id ? "Celo Mainnet" :
+    chainId === CHAIN_ID ? TARGET_CHAIN_NAME :
     chainId ? `Chain ID: ${chainId}` : "Desconectado";
 
-  const switchToCelo = () => switchChain({ chainId: celo.id });
+  const switchToCelo = () => switchChain({ chainId: CHAIN_ID });
 
   useEffect(() => {
     if (tokens.length > 0 && !selectedToken) {
@@ -486,12 +488,12 @@ export default function Home() {
                 </div>
                 <h2 className="text-xl font-semibold mb-2">Red no soportada</h2>
                 <p className="text-muted-foreground mb-6 max-w-md">
-                  El contrato de Apuntacelo está desplegado en <strong>Celo Mainnet</strong>. Cambiá a esta red para usar la app.
+                  El contrato de Apuntacelo está desplegado en <strong>{TARGET_CHAIN_NAME}</strong>. Cambiá a esta red para usar la app.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button onClick={switchToCelo} className="gap-2">
                     <Zap className="h-4 w-4" />
-                    Cambiar a Celo Mainnet
+                    Cambiar a {TARGET_CHAIN_NAME}
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-4">
